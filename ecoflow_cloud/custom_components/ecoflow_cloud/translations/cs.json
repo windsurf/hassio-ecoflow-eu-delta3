@@ -1,0 +1,30 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "EcoFlow Cloud – Nastavení",
+        "description": "Přidejte své zařízení EcoFlow. **Automatické rozpoznání** (doporučeno) vybere správné API na základě sériového čísla.",
+        "data": { "device_sn": "Sériové číslo zařízení", "auth_mode": "Způsob připojení" },
+        "data_description": {
+          "device_sn": "Na štítku zařízení nebo v aplikaci EcoFlow v části Informace o zařízení",
+          "auth_mode": "Automaticky zvolí App Login pro Delta 3 a novější zařízení, Developer API pro starší"
+        }
+      },
+      "public_creds": { "title": "EcoFlow Cloud – Developer API", "description": "{hint}", "data": { "access_key": "Přístupový klíč", "secret_key": "Tajný klíč" } },
+      "private_creds": { "title": "EcoFlow Cloud – Přihlášení přes aplikaci", "description": "{hint}", "data": { "email": "E-mail účtu EcoFlow", "password": "Heslo účtu EcoFlow" } },
+      "test": { "title": "EcoFlow Cloud – Test připojení", "description": "{eu}\n{us}\n{glob}\n\n{hint}" }
+    },
+    "error": { "cannot_connect": "Nelze se připojit – zkontrolujte přihlašovací údaje.", "unknown": "Neočekávaná chyba. Zkontrolujte protokoly Home Assistant." },
+    "abort": { "already_configured": "Toto zařízení je již nakonfigurováno." }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "EcoFlow Cloud – Nastavení ({mode})",
+        "description": "Aktuální server API: {current_host}",
+        "data": { "access_key": "Přístupový klíč", "secret_key": "Tajný klíč", "email": "E-mail účtu EcoFlow", "password": "Heslo účtu EcoFlow", "device_sn": "Sériové číslo zařízení", "api_host": "Server API" }
+      }
+    },
+    "error": { "cannot_connect": "Nelze se připojit s těmito přihlašovacími údaji." }
+  }
+}
