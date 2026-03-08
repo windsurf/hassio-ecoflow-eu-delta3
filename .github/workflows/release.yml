@@ -1,0 +1,41 @@
+---
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify version matches release tag
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION=$(python3 -c "
+          import json
+          with open('custom_components/ecoflow_cloud/manifest.json') as f:
+              print(json.load(f)['version'])
+          ")
+          echo "Tag:     $TAG"
+          echo "Version: $VERSION"
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "ERROR: tag $TAG does not match manifest version v$VERSION"
+            exit 1
+          fi
+
+      - name: Create release zip
+        run: |
+          cd custom_components
+          zip -r ../ecoflow_cloud.zip ecoflow_cloud/
+          cd ..
+          echo "Created ecoflow_cloud.zip"
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ecoflow_cloud.zip
