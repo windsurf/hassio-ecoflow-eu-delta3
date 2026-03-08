@@ -1,0 +1,30 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "EcoFlow Cloud – Asennus",
+        "description": "Lisää EcoFlow-laitteesi. **Automaattinen tunnistus** (suositeltu) valitsee oikean API:n sarjanumeron perusteella.",
+        "data": { "device_sn": "Laitteen sarjanumero", "auth_mode": "Yhteysmenetelmä" },
+        "data_description": {
+          "device_sn": "Laitteen tarrassa tai EcoFlow-sovelluksessa kohdassa Laitteen tiedot",
+          "auth_mode": "Automaattinen valitsee App Login -kirjautumisen Delta 3:lle ja uudemmille laitteille, kehittäjä-API vanhemmille"
+        }
+      },
+      "public_creds": { "title": "EcoFlow Cloud – Kehittäjä-API", "description": "{hint}", "data": { "access_key": "Pääsyavain", "secret_key": "Salainen avain" } },
+      "private_creds": { "title": "EcoFlow Cloud – Sovelluskirjautuminen", "description": "{hint}", "data": { "email": "EcoFlow-tilin sähköpostiosoite", "password": "EcoFlow-tilin salasana" } },
+      "test": { "title": "EcoFlow Cloud – Yhteystesti", "description": "{eu}\n{us}\n{glob}\n\n{hint}" }
+    },
+    "error": { "cannot_connect": "Yhteys epäonnistui – tarkista kirjautumistietosi.", "unknown": "Odottamaton virhe. Tarkista Home Assistantin lokit." },
+    "abort": { "already_configured": "Tämä laite on jo määritetty." }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "EcoFlow Cloud – Asetukset ({mode})",
+        "description": "Nykyinen API-palvelin: {current_host}",
+        "data": { "access_key": "Pääsyavain", "secret_key": "Salainen avain", "email": "EcoFlow-tilin sähköpostiosoite", "password": "EcoFlow-tilin salasana", "device_sn": "Laitteen sarjanumero", "api_host": "API-palvelin" }
+      }
+    },
+    "error": { "cannot_connect": "Yhteyttä ei voi muodostaa näillä tiedoilla." }
+  }
+}
