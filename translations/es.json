@@ -1,0 +1,64 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "EcoFlow Cloud – Configuración",
+        "description": "Añada su dispositivo EcoFlow. La **detección automática** (recomendada) elige la API correcta según el número de serie.",
+        "data": {
+          "device_sn":  "Número de serie del dispositivo",
+          "auth_mode":  "Método de conexión"
+        },
+        "data_description": {
+          "device_sn": "En la etiqueta del dispositivo o en la app EcoFlow en Información del dispositivo",
+          "auth_mode": "Automático elige App Login para Delta 3 y dispositivos más nuevos, API de desarrollador para los antiguos"
+        }
+      },
+      "public_creds": {
+        "title": "EcoFlow Cloud – API de desarrollador",
+        "description": "{hint}",
+        "data": {
+          "access_key": "Clave de acceso",
+          "secret_key": "Clave secreta"
+        }
+      },
+      "private_creds": {
+        "title": "EcoFlow Cloud – Inicio de sesión con la app",
+        "description": "{hint}",
+        "data": {
+          "email":    "Correo electrónico de la cuenta EcoFlow",
+          "password": "Contraseña de la cuenta EcoFlow"
+        }
+      },
+      "test": {
+        "title": "EcoFlow Cloud – Prueba de conexión",
+        "description": "{eu}\n{us}\n{glob}\n\n{hint}"
+      }
+    },
+    "error": {
+      "cannot_connect": "No se puede conectar – verifique sus credenciales.",
+      "unknown": "Error inesperado. Consulte los registros de Home Assistant."
+    },
+    "abort": {
+      "already_configured": "Este dispositivo ya está configurado."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "EcoFlow Cloud – Ajustes ({mode})",
+        "description": "Servidor API actual: {current_host}",
+        "data": {
+          "access_key": "Clave de acceso",
+          "secret_key": "Clave secreta",
+          "email":      "Correo electrónico de la cuenta EcoFlow",
+          "password":   "Contraseña de la cuenta EcoFlow",
+          "device_sn":  "Número de serie del dispositivo",
+          "api_host":   "Servidor API"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "No se puede conectar con estas credenciales."
+    }
+  }
+}
