@@ -38,6 +38,7 @@ KEY_EMS_CHG_VOL     = "bms_emsStatus.chgVol"          # EMS charge voltage      
 KEY_EMS_CHG_AMP     = "bms_emsStatus.chgAmp"          # EMS charge current      (mA)
 KEY_EMS_FAN_LEVEL   = "bms_emsStatus.fanLevel"        # Fan level               (0-3)
 KEY_EMS_CHG_LINE    = "bms_emsStatus.chgLinePlug"     # AC plug connected       (0/1)
+KEY_EMS_UPS_FLAG    = "bms_emsStatus.openUpsFlag"     # UPS mode on/off         (0/1)
 
 # ── BMS Kit Info (extra battery pack) ──────────────────────────────────────
 KEY_KIT_WATTS       = "bms_kitInfo.watts"             # Extra battery power     (W)
