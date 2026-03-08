@@ -198,14 +198,16 @@ logger:
 
 ## Changelog
 
-### v0.2.2
+### v0.2.2 – Bugfix: duplicate sensor IDs
 - Fixed: 7 sensors ignored by Home Assistant due to duplicate unique IDs — BMS/EMS keys in `delta3_1500.py` were incorrectly mapped to MPPT/INV keys already used by other sensors; all now point to correct `bms_bmsStatus.*` / `bms_emsStatus.*` keys (confirmed present in live MQTT dumps)
 
-### v0.2.1
+### v0.2.1 – Bugfix: sensors freezing after ~1 minute
 - Fixed: all sensors freezing after ~1 minute — coordinator crashed when device sent `bms_kitInfo` as a JSON array; non-scalar MQTT values are now filtered before merging into coordinator data
 
-### v0.2.0
-- Initial public release
+### v0.2.0 – Entities cleaned up & push script improved
+- Removed: `brands/icon.png` (HA has built-in EcoFlow icon via brands.home-assistant.io)
+- Changed: 35 of 75 sensors disabled by default (never or rarely receive data)
+- Changed: Push script now automatically removes files from GitHub that no longer exist locally
 
 ### v0.1.3
 - Fixed: MQTT connection dropping over time — keepalive increased from 60s to 120s, reconnect max from 30s to 60s
