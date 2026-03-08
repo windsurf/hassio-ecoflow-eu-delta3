@@ -118,12 +118,21 @@ class EcoflowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         else:
             new_data = {k: v for k, v in payload.items() if k not in _META_KEYS}
 
-        if not new_data:
-            _LOGGER.debug("MQTT payload yielded no data: %s", str(payload)[:200])
+        # Filter out non-scalar values (lists, dicts) — they cannot be stored
+        # as HA sensor states. Log skipped keys for debugging.
+        scalar_data = {}
+        for k, v in new_data.items():
+            if isinstance(v, (list, dict)):
+                _LOGGER.debug("MQTT skipping non-scalar key %s (type=%s)", k, type(v).__name__)
+            else:
+                scalar_data[k] = v
+
+        if not scalar_data:
+            _LOGGER.debug("MQTT payload yielded no scalar data: %s", str(payload)[:200])
             return
 
         _LOGGER.warning(
             "MQTT data received: %d keys — all keys: %s",
-            len(new_data), sorted(new_data.keys())
+            len(scalar_data), sorted(scalar_data.keys())
         )
-        self.async_set_updated_data({**(self.data or {}), **new_data})
+        self.async_set_updated_data({**(self.data or {}), **scalar_data})
