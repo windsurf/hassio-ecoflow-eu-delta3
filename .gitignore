@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+
+# HA dev
+.storage/
+.HA_VERSION
+
+# macOS
+.DS_Store
+
+# Build artifacts
+*.zip
+ecoflow_cloud.zip
