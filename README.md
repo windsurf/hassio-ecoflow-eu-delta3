@@ -198,6 +198,9 @@ logger:
 
 ## Changelog
 
+### v0.2.3 – Bugfix: force update after HACS install
+- Fixed: HA did not prompt for restart after HACS update when version number was unchanged — bumped version so HACS correctly detects the update and requests a restart
+
 ### v0.2.2 – Bugfix: duplicate sensor IDs
 - Fixed: 7 sensors ignored by Home Assistant due to duplicate unique IDs — BMS/EMS keys in `delta3_1500.py` were incorrectly mapped to MPPT/INV keys already used by other sensors; all now point to correct `bms_bmsStatus.*` / `bms_emsStatus.*` keys (confirmed present in live MQTT dumps)
 
