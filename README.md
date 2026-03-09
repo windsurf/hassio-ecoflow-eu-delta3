@@ -234,33 +234,11 @@ logger:
 - Changed: 35 of 75 sensors disabled by default (never or rarely receive data)
 - Changed: Push script now automatically removes files from GitHub that no longer exist locally
 
-### v0.1.3
-- Fixed: MQTT connection dropping over time — keepalive increased from 60s to 120s, reconnect max from 30s to 60s
-- Fixed: MQTT subscribe now uses QoS 1 for more reliable message delivery
-- Fixed: Log spam reduced — MQTT messages now logged at DEBUG level instead of WARNING
-
-
-### v0.1.2
-- **85+ entities enabled by default** — removed unnecessary `entity_registry_enabled_default=False` from most sensors, all switches and all number controls
-- Fixed: "Time Remaining" and "Time to Full" showing unavailable — added `pd.remainTime` as fallback key when EMS keys are absent (device only sends them while actively charging/discharging)
-- Added `fallback_key` support in sensor entity for resilient key resolution
-
-### v0.1.1
-- Fixed: "Time Remaining" and "Time to Full" sensors showing unavailable after HA restart
-
-### v0.1.0
-- **65+ sensors** — complete coverage of all MQTT keys observed on Delta 3 1500
-- **9 switches** — added Solar Charge Priority, UPS Mode, AC Auto-On, AC Always-On, DC 24V Output, Beep
-- **9 number controls** — added Battery Protection SOC, Car Port Standby, LCD Timeout, Min SOC for AC Auto-On
-- **AC Charging Speed** slider: correct 200–1500 W range for Delta 3 1500 (Delta 2 is max 1200 W)
-- Fixed: `tls_set()` blocking call moved to executor thread (removes HA event loop warnings)
-- Fixed: `rest_quota_unavailable` attribute missing on `EcoFlowPrivateAPI` (removed setup error)
-- Fixed: `moduleType` now correct per command (was always `0`)
-- Fixed: `acOutCfg` params use `255` for unchanged fields (was `0`, risked resetting voltage/frequency)
-- Fixed: AC Charging pause now sends `slowChgWatts/fastChgWatts` instead of deprecated `chgWatts`
-- Added: `bms_bmsInfo` lifetime statistics sensors (SOH, cumulative energy, internal resistance, etc.)
-- Added: energy totals with correct scaling (kWh ×0.001, Wh raw)
-- Added: voltage/current sensors with correct mV→V and mA→A scaling
+### v0.1.0–v0.1.3
+- First stable release: 65+ sensors, 9 switches, 9 number controls — complete Delta 3 1500 coverage
+- MQTT reliability fixes: keepalive, QoS 1, reduced log spam
+- 85+ entities enabled by default; fallback key support for Time Remaining / Time to Full sensors
+- Various command payload and scaling fixes (tls_set, moduleType, acOutCfg, chgWatts)
 
 ### v0.0.11–v0.0.21
 - Early iterations: App Login mode, MQTT ClientID fix, Base64 password encoding, auto-detect connection mode, 12 UI translations (NL/DE/FR/ES/IT/PL/PT/SV/DA/FI/CS/HU), various key and scaling fixes
