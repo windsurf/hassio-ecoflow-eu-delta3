@@ -29,7 +29,6 @@ from .devices.delta3_1500 import (
     KEY_LCD_TIMEOUT,
     KEY_STANDBY_TIME,
     KEY_AC_STANDBY_TIME,
-    KEY_AC_SLOW_CHG_W,
     KEY_MPPT_CFG_CHG_W,
     KEY_DC12V_STANDBY,
     KEY_MIN_AC_SOC,
@@ -169,7 +168,7 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         cmd_param_key="standbyMins",
     ),
     EcoFlowNumberDescription(
-        key="car_standby_time",
+        key="dc12v_standby_time",
         name="DC 12V Standby Time",
         native_unit_of_measurement="min",
         native_min_value=0,
@@ -289,7 +288,7 @@ class EcoFlowNumberEntity(CoordinatorEntity[EcoflowCoordinator], NumberEntity):
             "operateType": desc.cmd_operate,
             "params":      params,
         }
-        _LOGGER.warning("Number command → %s : %s", topic, cmd)
+        _LOGGER.debug("Number command → %s : %s", topic, cmd)
         client.publish(topic, json.dumps(cmd), qos=1)
 
     async def async_set_native_value(self, value: float) -> None:
