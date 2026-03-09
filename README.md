@@ -198,6 +198,17 @@ logger:
 
 ## Changelog
 
+### v0.2.10 – Merge: v0.2.9 base + v0.2.8 extras
+
+**Merged from v0.2.8:**
+- Added: `RESTART_WARNING.md` — guidance on disabling rate-limited integrations before repeated HA restarts
+- Added: `examples/ecoflow_optimal_charging_v1.3.yaml` — smart AC charging automation based on PV surplus (entity IDs updated to v0.2.9 naming)
+- Added: `examples/dashboard_ecoflow_v1.0.yaml` — alternative compact dashboard (entity IDs updated to v0.2.9 naming, 33 corrections)
+- Added: `examples/test_credentials.py` — EcoFlow API credential diagnostic tool
+
+**Fixes:**
+- Fixed: `coordinator.py` MQTT data log level set back to `DEBUG` (was accidentally set to `WARNING` in v0.2.9)
+
 ### v0.2.9 – Refactor: full naming overhaul + AC charging speed fix + USB switch fix
 
 **Fixes:**
