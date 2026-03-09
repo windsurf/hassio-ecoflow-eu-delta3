@@ -1,0 +1,371 @@
+title: EcoFlow Delta 3
+path: ecoflow
+icon: mdi:battery-charging
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 1
+    cards:
+      - type: heading
+        heading: Battery
+      - type: gauge
+        entity: sensor.ecoflow_delta_3_1500_battery_level
+        name: Battery Level
+        min: 0
+        max: 100
+        needle: true
+        severity:
+          green: 50
+          yellow: 20
+          red: 0
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_cycles
+        name: Cycles
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_state_of_health_lifetime
+        name: State of Health (lifetime)
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_battery_temperature
+        name: Battery Temperature
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_wifi_signal
+        name: WiFi Signal
+      # Optional: add your own custom gauges here (e.g. grid power usage sensors)
+      # - type: gauge
+      #   entity: sensor.your_power_usage_sensor
+      #   min: -1500
+      #   max: 3000
+      #   needle: true
+  - type: grid
+    column_span: 1
+    cards:
+      - type: heading
+        heading: Power
+      - type: gauge
+        entity: sensor.ecoflow_delta_3_1500_total_in_power
+        name: Total In Power
+        min: 0
+        max: 2000
+        needle: true
+        severity:
+          green: 500
+          yellow: 100
+          red: 0
+      - type: gauge
+        entity: sensor.ecoflow_delta_3_1500_total_out_power
+        name: Total Out Power
+        min: 0
+        max: 2000
+        needle: true
+        severity:
+          green: 0
+          yellow: 1000
+          red: 1800
+  - type: grid
+    column_span: 1
+    cards:
+      - type: heading
+        heading: AC Output
+      - type: tile
+        entity: switch.ecoflow_delta_3_1500_ac_enabled
+        name: AC Enabled
+      - type: tile
+        entity: switch.ecoflow_delta_3_1500_x_boost
+        name: X-Boost
+      - type: gauge
+        entity: sensor.ecoflow_delta_3_1500_ac_out_power
+        name: AC Out Power
+        min: 0
+        max: 1500
+        needle: true
+        severity:
+          green: 0
+          yellow: 1000
+          red: 1400
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_ac_out_volts
+        name: AC Out Volts
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_ac_out_current
+        name: AC Out Current
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_ac_out_frequency
+        name: AC Out Frequency
+  - type: grid
+    column_span: 1
+    cards:
+      - type: heading
+        heading: AC Input
+      - type: tile
+        entity: switch.ecoflow_delta_3_1500_ac_charging_230v
+        name: AC Charging (230V)
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_ac_plug_connected
+        name: AC Plug Connected
+      - type: gauge
+        entity: sensor.ecoflow_delta_3_1500_ac_in_power
+        name: AC In Power
+        min: 0
+        max: 1500
+        needle: true
+        severity:
+          green: 500
+          yellow: 100
+          red: 0
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_ac_in_volts
+        name: AC In Volts
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_ac_in_current
+        name: AC In Current
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_ac_in_frequency
+        name: AC In Frequency
+  - type: grid
+    column_span: 1
+    cards:
+      - type: heading
+        heading: Solar
+      - type: gauge
+        entity: sensor.ecoflow_delta_3_1500_solar_in_power
+        name: Solar In Power
+        min: 0
+        max: 500
+        needle: true
+        severity:
+          green: 300
+          yellow: 100
+          red: 0
+      - type: tile
+        entity: switch.ecoflow_delta_3_1500_prio_solar_charging
+        name: Prio Solar Charging
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_solar_in_voltage
+        name: Solar In Voltage
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_solar_in_current
+        name: Solar In Current
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_mppt_output_power
+        name: MPPT Output Power
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_mppt_temperature
+        name: MPPT Temperature
+  - type: grid
+    column_span: 1
+    cards:
+      - type: heading
+        heading: DC Outputs
+      - type: tile
+        entity: switch.ecoflow_delta_3_1500_dc_12v_enabled
+        name: DC (12V) Enabled
+      - type: tile
+        entity: switch.ecoflow_delta_3_1500_dc_24v_enabled
+        name: DC (24V) Enabled
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_dc_12v_out_power
+        name: DC (12V) Out Power
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_dc_dc_12v_power
+        name: DC-DC 12V Power
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_car_charger_input_power
+        name: Car Charger Input Power
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_dc_12v_temperature
+        name: DC (12V) Temperature
+  - type: grid
+    column_span: 1
+    cards:
+      - type: heading
+        heading: USB Outputs
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_usb_a_1_power
+        name: USB-A 1 Power
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_usb_a_2_power
+        name: USB-A 2 Power
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_usb_a_qc_1_power
+        name: USB-A QC 1 Power
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_usb_a_qc_2_power
+        name: USB-A QC 2 Power
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_usb_c_1_power
+        name: USB-C 1 Power
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_usb_c_2_power
+        name: USB-C 2 Power
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_usb_c_1_temperature
+        name: USB-C 1 Temperature
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_usb_c_2_temperature
+        name: USB-C 2 Temperature
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_wireless_charging_power
+        name: Wireless Charging Power
+  - type: grid
+    column_span: 1
+    cards:
+      - type: heading
+        heading: Settings
+      - type: tile
+        entity: number.ecoflow_delta_3_1500_max_charge_level
+        name: Max Charge Level
+      - type: tile
+        entity: number.ecoflow_delta_3_1500_min_discharge_level
+        name: Min Discharge Level
+      - type: tile
+        entity: number.ecoflow_delta_3_1500_battery_protection_soc
+        name: Battery Protection SOC
+      - type: tile
+        entity: number.ecoflow_delta_3_1500_ac_charging_speed
+        name: AC Charging Power
+      - type: tile
+        entity: number.ecoflow_delta_3_1500_min_soc_for_ac_auto_on
+        name: Min SOC for AC Auto-On
+      - type: tile
+        entity: switch.ecoflow_delta_3_1500_ac_auto_on
+        name: AC Auto On
+      - type: tile
+        entity: switch.ecoflow_delta_3_1500_ac_always_on
+        name: AC Always On
+      - type: tile
+        entity: switch.ecoflow_delta_3_1500_ups_mode
+        name: UPS Mode
+      - type: tile
+        entity: number.ecoflow_delta_3_1500_unit_timeout
+        name: Unit Timeout
+      - type: tile
+        entity: number.ecoflow_delta_3_1500_ac_timeout
+        name: AC Timeout
+      - type: tile
+        entity: number.ecoflow_delta_3_1500_dc_12v_timeout
+        name: DC (12V) Timeout
+      - type: tile
+        entity: number.ecoflow_delta_3_1500_screen_brightness
+        name: Screen Brightness
+      - type: tile
+        entity: number.ecoflow_delta_3_1500_screen_timeout
+        name: Screen Timeout
+      - type: tile
+        entity: switch.ecoflow_delta_3_1500_beeper
+        name: Beeper
+  - type: grid
+    column_span: 2
+    cards:
+      - type: heading
+        heading: Battery Detail
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_battery_voltage
+        name: Battery Voltage
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_battery_current
+        name: Battery Current
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_state_of_health
+        name: State of Health
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_remaining_capacity
+        name: Remaining Capacity
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_full_capacity
+        name: Full Capacity
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_design_capacity
+        name: Design Capacity
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_ems_charge_voltage
+        name: EMS Charge Voltage
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_ems_charge_current
+        name: EMS Charge Current
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_inverter_temperature
+        name: Inverter Temperature
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_dc_24v_temperature
+        name: DC (24V) Temperature
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_min_cell_voltage
+        name: Min Cell Voltage
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_max_cell_voltage
+        name: Max Cell Voltage
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_min_cell_temperature
+        name: Min Cell Temperature
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_max_cell_temperature
+        name: Max Cell Temperature
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_extra_battery_power
+        name: Extra Battery Power
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_extra_batteries_connected
+        name: Extra Batteries Connected
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_fan_level
+        name: Fan Level
+  - type: grid
+    column_span: 2
+    cards:
+      - type: heading
+        heading: Statistics
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_cumulative_ac_charged
+        name: Cumulative AC Charged
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_cumulative_dc_charged
+        name: Cumulative DC Charged
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_cumulative_charged_energy
+        name: Cumulative Charged Energy
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_cumulative_discharged_energy
+        name: Cumulative Discharged Energy
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_cumulative_charged_capacity
+        name: Cumulative Charged Capacity
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_cumulative_discharged_capacity
+        name: Cumulative Discharged Capacity
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_round_trip_efficiency
+        name: Round-Trip Efficiency
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_solar_charge_power_pd
+        name: Solar Charge Power (PD)
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_ac_fast_charge_limit
+        name: AC Fast Charge Limit
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_ac_slow_charge_limit
+        name: AC Slow Charge Limit
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_self_discharge_rate
+        name: Self-Discharge Rate
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_deep_discharge_count
+        name: Deep Discharge Count
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_internal_resistance
+        name: Internal Resistance
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_min_mos_temperature
+        name: Min MOS Temperature
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_max_mos_temperature
+        name: Max MOS Temperature
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_dc_input_voltage
+        name: DC Input Voltage
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_dc_input_current
+        name: DC Input Current
+      - type: tile
+        entity: sensor.ecoflow_delta_3_1500_dc_input_temperature
+        name: DC Input Temperature
