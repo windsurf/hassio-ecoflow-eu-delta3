@@ -131,7 +131,7 @@ class EcoflowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.debug("MQTT payload yielded no scalar data: %s", str(payload)[:200])
             return
 
-        _LOGGER.warning(
+        _LOGGER.debug(
             "MQTT data received: %d keys — all keys: %s",
             len(scalar_data), sorted(scalar_data.keys())
         )
