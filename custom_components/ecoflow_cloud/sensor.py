@@ -105,7 +105,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     ),
     EcoFlowSensorDescription(
         key=KEY_SOH,
-        name="Battery Health (BMS)",
+        name="State of Health",
         native_unit_of_measurement=PERCENTAGE,
         icon="mdi:battery-heart",
         state_class=SensorStateClass.MEASUREMENT,
@@ -113,7 +113,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     ),
     EcoFlowSensorDescription(
         key=KEY_CYCLES,
-        name="Charge Cycles",
+        name="Cycles",
         icon="mdi:battery-sync",
         state_class=SensorStateClass.TOTAL_INCREASING,
         round_digits=0,
@@ -226,7 +226,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     # ── EMS ──────────────────────────────────────────────────────────────
     EcoFlowSensorDescription(
         key=KEY_REMAIN_TIME,
-        name="Time Remaining",
+        name="Remaining Time",
         native_unit_of_measurement=UnitOfTime.MINUTES,
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
@@ -236,7 +236,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     ),
     EcoFlowSensorDescription(
         key=KEY_CHARGE_TIME,
-        name="Time to Full",
+        name="Charge Remaining Time",
         native_unit_of_measurement=UnitOfTime.MINUTES,
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
@@ -317,7 +317,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     # ── AC / Inverter ─────────────────────────────────────────────────────
     EcoFlowSensorDescription(
         key=KEY_AC_OUT_W,
-        name="AC Output Power",
+        name="AC Out Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -326,7 +326,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     ),
     EcoFlowSensorDescription(
         key=KEY_AC_IN_W,
-        name="AC Input Power (Mains)",
+        name="AC In Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -335,7 +335,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     ),
     EcoFlowSensorDescription(
         key=KEY_AC_IN_VOLT,
-        name="AC Input Voltage",
+        name="AC In Volts",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -344,7 +344,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     ),
     EcoFlowSensorDescription(
         key=KEY_AC_IN_AMP,
-        name="AC Input Current",
+        name="AC In Current",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
@@ -354,7 +354,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     ),
     EcoFlowSensorDescription(
         key=KEY_AC_IN_FREQ,
-        name="AC Input Frequency",
+        name="AC In Frequency",
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
         device_class=SensorDeviceClass.FREQUENCY,
         state_class=SensorStateClass.MEASUREMENT,
@@ -362,7 +362,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     ),
     EcoFlowSensorDescription(
         key=KEY_AC_OUT_VOLT,
-        name="AC Output Voltage",
+        name="AC Out Volts",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -371,7 +371,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     ),
     EcoFlowSensorDescription(
         key=KEY_AC_OUT_AMP,
-        name="AC Output Current",
+        name="AC Out Current",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
@@ -381,7 +381,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     ),
     EcoFlowSensorDescription(
         key=KEY_AC_OUT_FREQ_RT,
-        name="AC Output Frequency",
+        name="AC Out Frequency",
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
         device_class=SensorDeviceClass.FREQUENCY,
         state_class=SensorStateClass.MEASUREMENT,
@@ -448,7 +448,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     # ── Solar / MPPT ─────────────────────────────────────────────────────
     EcoFlowSensorDescription(
         key=KEY_SOLAR_W,
-        name="Solar Input Power",
+        name="Solar In Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -457,7 +457,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     ),
     EcoFlowSensorDescription(
         key=KEY_SOLAR_VOLT,
-        name="Solar Input Voltage",
+        name="Solar In Voltage",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -466,7 +466,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     ),
     EcoFlowSensorDescription(
         key=KEY_SOLAR_AMP,
-        name="Solar Input Current",
+        name="Solar In Current",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
@@ -493,7 +493,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     ),
     EcoFlowSensorDescription(
         key=KEY_CAR_OUT_W,
-        name="Car Port Output Power",
+        name="DC (12V) Out Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -512,7 +512,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     ),
     EcoFlowSensorDescription(
         key=KEY_CAR_TEMP,
-        name="Car Port Temperature",
+        name="DC (12V) Temperature",
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -520,7 +520,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     ),
     EcoFlowSensorDescription(
         key=KEY_DC24V_TEMP,
-        name="DC 24V Temperature",
+        name="DC (24V) Temperature",
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -540,7 +540,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     # ── USB / PD ─────────────────────────────────────────────────────────
     EcoFlowSensorDescription(
         key=KEY_IN_W_TOTAL,
-        name="Total Input Power",
+        name="Total In Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -549,7 +549,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     ),
     EcoFlowSensorDescription(
         key=KEY_OUT_W_TOTAL,
-        name="Total Output Power",
+        name="Total Out Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -691,7 +691,7 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
     # ── Battery lifetime statistics (bms_bmsInfo) ─────────────────────────
     EcoFlowSensorDescription(
         key=KEY_INFO_SOH,
-        name="Battery Health",
+        name="State of Health (lifetime)",
         native_unit_of_measurement=PERCENTAGE,
         icon="mdi:battery-heart-variant",
         state_class=SensorStateClass.MEASUREMENT,
