@@ -23,7 +23,6 @@ from .const import DOMAIN, MANUFACTURER
 from .coordinator import EcoflowCoordinator
 from .devices.delta3_1500 import (
     DEVICE_MODEL,
-    KEY_AC_SLOW_CHG_W,
     KEY_EMS_MAX_CHG_SOC,
     KEY_EMS_MIN_DSG_SOC,
     KEY_LCD_BRIGHTNESS,
@@ -31,7 +30,8 @@ from .devices.delta3_1500 import (
     KEY_STANDBY_TIME,
     KEY_AC_STANDBY_TIME,
     KEY_AC_SLOW_CHG_W,
-    KEY_CAR_STANDBY,
+    KEY_MPPT_CFG_CHG_W,
+    KEY_DC12V_STANDBY,
     KEY_MIN_AC_SOC,
     KEY_BP_POWER_SOC,
     AC_CHG_WATTS_MIN,
@@ -56,18 +56,19 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
     # ── AC Charging ───────────────────────────────────────────────────────
     EcoFlowNumberDescription(
         key="ac_charging_speed",
-        name="AC Charging Power",
+        name="AC Charging Speed",
         native_unit_of_measurement="W",
         native_min_value=AC_CHG_WATTS_MIN,
         native_max_value=AC_CHG_WATTS_MAX,
         native_step=AC_CHG_WATTS_STEP,
         mode=NumberMode.SLIDER,
         icon="mdi:transmission-tower-import",
-        state_key=KEY_AC_SLOW_CHG_W,  # inv.SlowChgWatts = configured AC charge watts
+        state_key=KEY_MPPT_CFG_CHG_W,  # mppt.cfgChgWatts — geconfigureerde laadlimiet
         cmd_module=5,  # MPPT
         cmd_operate="acChgCfg",
         cmd_params_fn=lambda v: {
-            "chgWatts":     int(v),
+            "slowChgWatts": int(v),
+            "fastChgWatts": int(v),
             "chgPauseFlag": 0,
         },
     ),
@@ -141,7 +142,7 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
     # ── Standby times ─────────────────────────────────────────────────────
     EcoFlowNumberDescription(
         key="standby_time",
-        name="Unit Timeout",
+        name="Device Standby Time",
         native_unit_of_measurement="min",
         native_min_value=0,
         native_max_value=720,
@@ -155,7 +156,7 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
     ),
     EcoFlowNumberDescription(
         key="ac_standby_time",
-        name="AC Timeout",
+        name="AC Output Standby Time",
         native_unit_of_measurement="min",
         native_min_value=0,
         native_max_value=720,
@@ -169,14 +170,14 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
     ),
     EcoFlowNumberDescription(
         key="car_standby_time",
-        name="DC (12V) Timeout",
+        name="DC 12V Standby Time",
         native_unit_of_measurement="min",
         native_min_value=0,
         native_max_value=720,
         native_step=30,
         mode=NumberMode.BOX,
         icon="mdi:car-clock",
-        state_key=KEY_CAR_STANDBY,
+        state_key=KEY_DC12V_STANDBY,
         cmd_module=5,  # MPPT
         cmd_operate="carStandby",
         cmd_param_key="standbyMins",
@@ -185,7 +186,7 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
     # ── Display ───────────────────────────────────────────────────────────
     EcoFlowNumberDescription(
         key="lcd_brightness",
-        name="Screen Brightness",
+        name="LCD Brightness",
         native_unit_of_measurement=PERCENTAGE,
         native_min_value=0,
         native_max_value=100,
@@ -199,7 +200,7 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
     ),
     EcoFlowNumberDescription(
         key="lcd_timeout",
-        name="Screen Timeout",
+        name="LCD Timeout",
         native_unit_of_measurement="s",
         native_min_value=0,
         native_max_value=300,
