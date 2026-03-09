@@ -55,7 +55,7 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
     # ── Outputs ──────────────────────────────────────────────────────────
     EcoFlowSwitchDescription(
         key="ac_output",
-        name="AC Output",
+        name="AC Enabled",
         icon="mdi:power-socket-eu",
         state_key=KEY_AC_ENABLED,
         cmd_module=MODULE_INV,
@@ -83,7 +83,7 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
     ),
     EcoFlowSwitchDescription(
         key="dc_output",
-        name="DC Output",
+        name="DC (12V) Enabled",
         icon="mdi:car-electric",
         state_key=KEY_DC_OUT_STATE,
         cmd_module=MODULE_MPPT,
@@ -92,7 +92,7 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
     ),
     EcoFlowSwitchDescription(
         key="dc24v_output",
-        name="DC 24V Output",
+        name="DC (24V) Enabled",
         icon="mdi:car-battery",
         state_key=KEY_DC24V_STATE,
         cmd_module=MODULE_MPPT,
@@ -102,7 +102,7 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
 
     # ── AC Charging ───────────────────────────────────────────────────────
     EcoFlowSwitchDescription(
-        key="ac_charging",
+        key="ac_charging_230v",
         name="AC Charging (230V)",
         icon="mdi:transmission-tower",
         state_key=KEY_AC_CHG_PAUSE,
@@ -122,7 +122,7 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
     # ── Charging behaviour ────────────────────────────────────────────────
     EcoFlowSwitchDescription(
         key="pv_charge_priority",
-        name="Solar Charge Priority",
+        name="Prio Solar Charging",
         icon="mdi:solar-power",
         state_key=KEY_PV_CHG_PRIO,
         cmd_module=MODULE_MPPT,
@@ -131,7 +131,7 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
     ),
     EcoFlowSwitchDescription(
         key="ac_auto_on",
-        name="AC Auto-On (on plug-in)",
+        name="AC Auto On",
         icon="mdi:power-plug-outline",
         state_key=KEY_AC_AUTO_ON,
         cmd_module=MODULE_PD,
@@ -140,7 +140,7 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
     ),
     EcoFlowSwitchDescription(
         key="ac_always_on",
-        name="AC Always-On",
+        name="AC Always On",
         icon="mdi:power-plug",
         state_key=KEY_AC_AUTO_OUT,
         cmd_module=MODULE_PD,
@@ -160,7 +160,7 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
     # ── System ───────────────────────────────────────────────────────────
     EcoFlowSwitchDescription(
         key="beep",
-        name="Beep Sound",
+        name="Beeper",
         icon="mdi:volume-high",
         state_key=KEY_BEEP_MODE,
         cmd_module=MODULE_PD,
