@@ -1,0 +1,64 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "EcoFlow Cloud – Installatie",
+        "description": "Voeg uw EcoFlow apparaat toe. **Automatisch detecteren** (aanbevolen) kiest de juiste API op basis van uw serienummer.",
+        "data": {
+          "device_sn":  "Serienummer apparaat",
+          "auth_mode":  "Verbindingsmethode"
+        },
+        "data_description": {
+          "device_sn": "Staat op het label van het apparaat of in de EcoFlow-app onder Apparaatinfo",
+          "auth_mode": "Automatisch kiest App Login voor Delta 3 en nieuwere apparaten, Developer API voor oudere"
+        }
+      },
+      "public_creds": {
+        "title": "EcoFlow Cloud – Developer API",
+        "description": "{hint}",
+        "data": {
+          "access_key": "Access Key",
+          "secret_key": "Secret Key"
+        }
+      },
+      "private_creds": {
+        "title": "EcoFlow Cloud – App Login",
+        "description": "{hint}",
+        "data": {
+          "email":    "EcoFlow account e-mailadres",
+          "password": "EcoFlow accountwachtwoord"
+        }
+      },
+      "test": {
+        "title": "EcoFlow Cloud – Verbindingstest",
+        "description": "{eu}\n{us}\n{glob}\n\n{hint}"
+      }
+    },
+    "error": {
+      "cannot_connect": "Kan geen verbinding maken – controleer uw gegevens.",
+      "unknown": "Onverwachte fout. Raadpleeg de Home Assistant logs."
+    },
+    "abort": {
+      "already_configured": "Dit apparaat is al geconfigureerd."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "EcoFlow Cloud – Instellingen ({mode})",
+        "description": "Huidige API-server: {current_host}",
+        "data": {
+          "access_key": "Access Key",
+          "secret_key": "Secret Key",
+          "email":      "EcoFlow account e-mailadres",
+          "password":   "EcoFlow accountwachtwoord",
+          "device_sn":  "Serienummer apparaat",
+          "api_host":   "API-server"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Kan geen verbinding maken met deze gegevens."
+    }
+  }
+}

@@ -1,0 +1,166 @@
+# ============================================================
+# ECOFLOW OPTIMAL CHARGING — v1.3 | Mar 2026
+# ============================================================
+#
+# DESCRIPTION:
+#   Two modes in a single automation:
+#
+#   1. SOLAR CHARGING (07:00-23:00, SoC < 100%)
+#      Adjusts the charge power every minute based on solar
+#      surplus. Target: grid ≈ 0W. Min 200W, max 1500W.
+#      Pauses automatically when surplus is insufficient.
+#
+#   2. EMERGENCY CHARGING (always, no time window)
+#      Starts automatically when SoC < SOC_EMRG_START (10%).
+#      Min 800W, scales up with available surplus to max 1500W.
+#      Takes priority over solar charging.
+#
+# THRESHOLD LOGIC:
+#   - Grid > 0W     : pause solar charging (insufficient surplus)
+#   - SoC < 10%     : start emergency charging, min 800W
+#   - SoC >= 30%    : stop emergency charging
+#
+# ENTITIES — replace with your own entity IDs:
+#   - sensor.power_usage                              — grid power (negative = export/surplus)
+#   - sensor.ecoflow_delta_3_1500_battery_level       — SoC (%)
+#   - number.ecoflow_delta_3_1500_ac_charging_speed   — charge power (200-1500W, step 100W)
+#   - switch.ecoflow_delta_3_1500_ac_charging_230v    — AC charging on/off
+#
+# HOW TO USE:
+#   Step 1: Verify entity IDs via Settings → Entities
+#   Step 2: Test emergency charging: set SoC below 20% in Developer Tools
+#   Step 3: Set hardware actions to enabled: true when ready
+#
+# ============================================================
+
+alias: EcoFlow Optimal Charging v1.3
+description: "EcoFlow Optimal Charging v1.3 | Mar 2026 | Solar surplus charging + emergency charging below 20% SoC"
+
+triggers:
+  - trigger: homeassistant
+    event: start
+    id: ha_start
+  - trigger: time_pattern
+    minutes: /1
+    id: every_minute
+  - trigger: numeric_state
+    entity_id: sensor.power_usage
+    below: -200
+    for:
+      seconds: 15
+    id: surplus_high
+  - trigger: numeric_state
+    entity_id: sensor.power_usage
+    above: -150
+    for:
+      seconds: 15
+    id: surplus_low
+  - trigger: numeric_state
+    entity_id: sensor.ecoflow_delta_3_1500_battery_level
+    below: 20
+    id: soc_critical
+
+conditions: []
+
+actions:
+  - variables:
+      # ─── CONSTANTS ───────────────────────────────────────────
+      MIN_CHARGE_POWER:  200    # W — minimum charge power (solar mode)
+      MAX_CHARGE_POWER:  1500   # W — maximum charge power
+      STEP:              100    # W — rounding step
+      SOC_MAX:           90     # % — stop solar charging above this level
+      EMRG_MIN:          800    # W — minimum charge power (emergency mode)
+      SOC_EMRG_START:    10     # % — start emergency charging below this level
+      SOC_EMRG_TARGET:   30     # % — stop emergency charging above this level
+
+      # ─── SENSORS ─────────────────────────────────────────────
+      grid:             "{{ states('sensor.power_usage') | float(0) }}"
+      soc:              "{{ states('sensor.ecoflow_delta_3_1500_battery_level') | float(0) }}"
+      current_power:    "{{ states('number.ecoflow_delta_3_1500_ac_charging_speed') | float(200) }}"
+      switch_state:     "{{ states('switch.ecoflow_delta_3_1500_ac_charging_230v') }}"
+
+      # ─── EMERGENCY MODE ──────────────────────────────────────
+      emergency_active: "{{ soc < SOC_EMRG_TARGET and (soc < SOC_EMRG_START or switch_state == 'on' and current_power >= EMRG_MIN) }}"
+
+      # ─── SOLAR CHARGE CALCULATION ────────────────────────────
+      desired_power: "{{ current_power - grid }}"
+      new_power: >-
+        {% set raw = desired_power | float(200) %}
+        {% set rounded = ((raw / STEP) | round(0, 'half') * STEP) | int %}
+        {{ [MAX_CHARGE_POWER, [MIN_CHARGE_POWER, rounded] | max] | min }}
+      emrg_power: >-
+        {% set raw = desired_power | float(800) %}
+        {% set rounded = ((raw / STEP) | round(0, 'half') * STEP) | int %}
+        {{ [MAX_CHARGE_POWER, [EMRG_MIN, rounded] | max] | min }}
+      pause: "{{ desired_power < MIN_CHARGE_POWER }}"
+
+      # ─── CONTROL FLAGS ───────────────────────────────────────
+      send_switch_off: "{{ not emergency_active and pause and switch_state == 'on' }}"
+      send_switch_on:  "{{ (emergency_active or not pause) and switch_state == 'off' }}"
+      send_power: >-
+        {% if emergency_active %}
+          {{ (emrg_power | int) != (current_power | int) }}
+        {% else %}
+          {{ not pause and (new_power | int) != (current_power | int) }}
+        {% endif %}
+      target_power: "{{ emrg_power if emergency_active else new_power }}"
+
+      # ─── NOTIFICATION TEXT ───────────────────────────────────
+      time_str:    "{{ now().strftime('%H:%M') }}"
+      status_name: >-
+        {% if emergency_active %}Emergency
+        {% elif pause          %}Paused
+        {% elif grid <= -1500  %}Max
+        {% elif grid <= -600   %}Fast
+        {% elif grid <= -200   %}Eco
+        {% else                %}Idle{% endif %}
+      status_icon: >-
+        {% if emergency_active %}🔴
+        {% elif pause          %}⏸️
+        {% elif grid <= -1500  %}🚀
+        {% elif grid <= -600   %}⚡
+        {% elif grid <= -200   %}🔋
+        {% else                %}⚖️{% endif %}
+      notify_line1: "Charging: {{ target_power | int }}W | SoC: {{ soc | round(0) | int }}%"
+      notify_line2: "Grid: {{ grid | round(0) | int }}W | Status: {{ status_name }}"
+
+  # ─── SWITCH CONTROL ──────────────────────────────────────
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ send_switch_off }}"
+        sequence:
+          - action: switch.turn_off
+            target:
+              entity_id: switch.ecoflow_delta_3_1500_ac_charging_230v
+            enabled: false  # TEST — set to true when ready
+      - conditions:
+          - condition: template
+            value_template: "{{ send_switch_on }}"
+        sequence:
+          - action: switch.turn_on
+            target:
+              entity_id: switch.ecoflow_delta_3_1500_ac_charging_230v
+            enabled: false  # TEST — set to true when ready
+    default: []
+
+  # ─── CHARGE POWER CONTROL ────────────────────────────────
+  - if:
+      - condition: template
+        value_template: "{{ send_power }}"
+    then:
+      - action: number.set_value
+        target:
+          entity_id: number.ecoflow_delta_3_1500_ac_charging_speed
+        data:
+          value: "{{ target_power }}"
+        enabled: false  # TEST — set to true when ready
+
+  # ─── NOTIFICATION ────────────────────────────────────────
+  - action: notify.notify
+    data:
+      title: "{{ status_icon }} EcoFlow {{ status_name }} {{ time_str }}"
+      message: "{{ notify_line1 }}\n{{ notify_line2 }}"
+    enabled: true
+
+mode: restart
