@@ -20,15 +20,15 @@ from .devices.delta3_1500 import (
     DEVICE_MODEL,
     KEY_AC_ENABLED,
     KEY_AC_XBOOST,
-    KEY_CAR_OUT_STATE,
-    KEY_DC_OUT_STATE,
+    KEY_DC12V_STATE,
+    KEY_USB_OUT_STATE,
     KEY_AC_CHG_PAUSE,
     KEY_BEEP_MODE,
     KEY_PV_CHG_PRIO,
     KEY_AC_AUTO_ON,
     KEY_AC_AUTO_OUT,
     KEY_EMS_UPS_FLAG,
-    KEY_DC24V_STATE,
+    KEY_DC_OUT_STATE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,7 +55,7 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
     # ── Outputs ──────────────────────────────────────────────────────────
     EcoFlowSwitchDescription(
         key="ac_output",
-        name="AC Enabled",
+        name="AC Output",
         icon="mdi:power-socket-eu",
         state_key=KEY_AC_ENABLED,
         cmd_module=MODULE_INV,
@@ -82,19 +82,19 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
         },
     ),
     EcoFlowSwitchDescription(
-        key="dc_output",
-        name="DC (12V) Enabled",
-        icon="mdi:car-electric",
-        state_key=KEY_DC_OUT_STATE,
-        cmd_module=MODULE_MPPT,
+        key="usb_output",
+        name="USB Output",
+        icon="mdi:usb-port",
+        state_key=KEY_USB_OUT_STATE,
+        cmd_module=MODULE_PD,
         cmd_operate="dcOutCfg",
         cmd_params=lambda on: {"enabled": 1 if on else 0},
     ),
     EcoFlowSwitchDescription(
-        key="dc24v_output",
-        name="DC (24V) Enabled",
-        icon="mdi:car-battery",
-        state_key=KEY_DC24V_STATE,
+        key="dc_output",
+        name="DC Output",
+        icon="mdi:car-electric",
+        state_key=KEY_DC_OUT_STATE,
         cmd_module=MODULE_MPPT,
         cmd_operate="dc24vCfg",
         cmd_params=lambda on: {"enabled": 1 if on else 0},
@@ -102,8 +102,8 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
 
     # ── AC Charging ───────────────────────────────────────────────────────
     EcoFlowSwitchDescription(
-        key="ac_charging_230v",
-        name="AC Charging (230V)",
+        key="ac_charging",
+        name="AC Charging",
         icon="mdi:transmission-tower",
         state_key=KEY_AC_CHG_PAUSE,
         # chgPauseFlag=0 means charging ACTIVE → switch ON
@@ -122,7 +122,7 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
     # ── Charging behaviour ────────────────────────────────────────────────
     EcoFlowSwitchDescription(
         key="pv_charge_priority",
-        name="Prio Solar Charging",
+        name="Solar Charge Priority",
         icon="mdi:solar-power",
         state_key=KEY_PV_CHG_PRIO,
         cmd_module=MODULE_MPPT,
@@ -131,7 +131,7 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
     ),
     EcoFlowSwitchDescription(
         key="ac_auto_on",
-        name="AC Auto On",
+        name="AC Auto-On",
         icon="mdi:power-plug-outline",
         state_key=KEY_AC_AUTO_ON,
         cmd_module=MODULE_PD,
@@ -140,7 +140,7 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
     ),
     EcoFlowSwitchDescription(
         key="ac_always_on",
-        name="AC Always On",
+        name="AC Always-On",
         icon="mdi:power-plug",
         state_key=KEY_AC_AUTO_OUT,
         cmd_module=MODULE_PD,
@@ -160,7 +160,7 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
     # ── System ───────────────────────────────────────────────────────────
     EcoFlowSwitchDescription(
         key="beep",
-        name="Beeper",
+        name="Beep Sound",
         icon="mdi:volume-high",
         state_key=KEY_BEEP_MODE,
         cmd_module=MODULE_PD,
