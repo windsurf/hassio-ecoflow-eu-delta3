@@ -62,10 +62,10 @@ After setup, use the **gear icon** on the integration card to change credentials
 | Entity | Unit | Default |
 |--------|------|---------|
 | Battery Level | % | ✅ |
-| Battery Health | % | ✅ |
-| Charge Cycles | | ✅ |
-| Time Remaining (discharge) | min | ✅ |
-| Time to Full (charge) | min | ✅ |
+| State of Health | % | ✅ |
+| Cycles | | ✅ |
+| Remaining Time | min | ✅ |
+| Charge Remaining Time | min | ✅ |
 | Battery Voltage | V | ✅ |
 | Battery Current | A | ✅ |
 | Battery Temperature | °C | ✅ |
@@ -80,25 +80,25 @@ After setup, use the **gear icon** on the integration card to change credentials
 | Extra Battery Power | W | off |
 | Extra Batteries Connected | | off |
 | **AC / Inverter** | | |
-| AC Output Power | W | ✅ |
-| AC Input Power (Mains) | W | ✅ |
-| AC Input Voltage / Current / Frequency | V / A / Hz | off |
-| AC Output Voltage / Current / Frequency | V / A / Hz | off |
+| AC Out Power | W | ✅ |
+| AC In Power | W | ✅ |
+| AC In Volts / Current / Frequency | V / A / Hz | off |
+| AC Out Volts / Current / Frequency | V / A / Hz | off |
 | AC Fast / Slow Charge Limit | W | off |
 | Inverter Temperature | °C | off |
 | DC Input Voltage / Current / Temperature | V / A / °C | off |
 | **Solar / MPPT** | | |
-| Solar Input Power | W | ✅ |
-| Solar Input Voltage / Current | V / A | off |
+| Solar In Power | W | ✅ |
+| Solar In Voltage / Current | V / A | off |
 | MPPT Output Power | W | off |
 | MPPT Temperature | °C | off |
-| Car Port Output Power | W | ✅ |
+| DC (12V) Out Power | W | ✅ |
 | Car Charger Input Power | W | off |
-| Car Port Temperature | °C | off |
-| DC 24V Temperature | °C | off |
+| DC (12V) Temperature | °C | off |
+| DC (24V) Temperature | °C | off |
 | DC-DC 12V Power | W | off |
 | **USB / PD** | | |
-| Total Input / Output Power | W | ✅ |
+| Total In / Out Power | W | ✅ |
 | USB-A 1 / 2 Power | W | ✅ |
 | USB-A QC 1 / 2 Power | W | ✅ |
 | USB-C 1 / 2 Power | W | ✅ |
@@ -113,40 +113,41 @@ After setup, use the **gear icon** on the integration card to change credentials
 | Battery Protection SOC | % | off |
 | WiFi Signal | dBm | off |
 | **Battery lifetime** | | |
-| Total Charge Cycles | | ✅ |
+| State of Health (lifetime) | % | ✅ |
 | Round-Trip Efficiency | % | off |
 | Self-Discharge Rate | %/day | off |
 | Deep Discharge Count | | off |
 | Internal Resistance | mΩ | off |
 
-### Switches (9)
+### Switches (10)
 
 | Entity | Default | Notes |
 |--------|---------|-------|
-| AC Output | ✅ | Turn 230V output on/off |
+| AC Enabled | ✅ | Turn 230V output on/off |
 | X-Boost | ✅ | Enable/disable X-Boost |
-| DC Output | ✅ | Car/DC port on/off |
+| DC (12V) Enabled | ✅ | 12V car port on/off |
+| DC (24V) Enabled | off | 24V DC port on/off |
 | AC Charging (230V) | ✅ | **Pause/resume mains charging** — temporary, resets on replug |
-| Solar Charge Priority | ✅ | Prioritise solar over AC |
+| Prio Solar Charging | ✅ | Prioritise solar over AC |
 | UPS Mode | ✅ | Enable/disable UPS pass-through |
-| AC Auto-On (on plug-in) | off | AC turns on when mains is connected |
-| AC Always-On | off | Keep AC on even at low SOC |
-| Beep Sound | off | Enable/disable device beeps |
+| AC Auto On | off | AC turns on when mains is connected |
+| AC Always On | off | Keep AC on even at low SOC |
+| Beeper | off | Enable/disable device beeps |
 
-### Number Controls (9)
+### Number Controls (10)
 
 | Entity | Range | Default |
 |--------|-------|---------|
-| AC Charging Speed | 200–1500 W (step 100) | ✅ |
+| AC Charging Power | 200–1500 W (step 100) | ✅ |
 | Max Charge Level | 50–100% (step 5) | ✅ |
 | Min Discharge Level | 0–30% (step 5) | ✅ |
 | Battery Protection SOC | 0–100% (step 5) | ✅ |
-| Standby Time | 0–720 min | ✅ |
-| AC Standby Time | 0–720 min | ✅ |
-| Car Port Standby Time | 0–720 min | off |
-| LCD Brightness | 0–100% (step 25) | ✅ |
-| LCD Timeout | 0–300 s | off |
-| Min SOC for AC Auto-On | 0–100% (step 5) | off |
+| Unit Timeout | 0–720 min | ✅ |
+| AC Timeout | 0–720 min | ✅ |
+| DC (12V) Timeout | 0–720 min | off |
+| Screen Brightness | 0–100% (step 25) | ✅ |
+| Screen Timeout | 0–300 s | off |
+| Min SOC for AC Auto On | 0–100% (step 5) | off |
 
 > Entities marked **off** are disabled by default. Enable them in Settings → Devices & Services → your device → the entity.
 
