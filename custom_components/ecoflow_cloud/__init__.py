@@ -23,7 +23,7 @@ from .api_client import EcoFlowAPI, EcoFlowPrivateAPI, EcoFlowAPIError
 from .coordinator import EcoflowCoordinator
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER]
+PLATFORMS = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER, Platform.SELECT]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
