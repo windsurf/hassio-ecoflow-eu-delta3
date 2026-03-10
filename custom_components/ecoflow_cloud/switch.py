@@ -28,6 +28,7 @@ from .devices.delta3_1500 import (
     KEY_AC_AUTO_OUT,
     KEY_EMS_UPS_FLAG,
     KEY_DC_OUT_STATE,
+    KEY_AC_BYPASS_PAUSE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -61,9 +62,9 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
         cmd_operate="acOutCfg",
         cmd_params=lambda on: {
             "enabled": 1 if on else 0,
-            "xboost":  255,
-            "outFreq": 255,
-            "outVol":  255,
+            "xboost":  0,
+            "outFreq": 1,    # 1 = 50 Hz
+            "outVol":  230,
         },
     ),
     EcoFlowSwitchDescription(
@@ -76,8 +77,8 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
         cmd_params=lambda on: {
             "enabled": 255,
             "xboost":  1 if on else 0,
-            "outFreq": 255,
-            "outVol":  255,
+            "outFreq": 1,    # 1 = 50 Hz
+            "outVol":  230,
         },
     ),
     EcoFlowSwitchDescription(
@@ -110,10 +111,8 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
         inverted=True,
         cmd_module=MODULE_MPPT,
         cmd_operate="acChgCfg",
-        # slowChgWatts/fastChgWatts=255 means "keep current setting"
+        # slowChgWatts/fastChgWatts weggelaten: apparaat negeert 255-placeholders
         cmd_params=lambda on: {
-            "slowChgWatts": 255,
-            "fastChgWatts": 255,
             "chgPauseFlag": 0 if on else 1,
         },
     ),
@@ -134,8 +133,8 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
         icon="mdi:power-plug-outline",
         state_key=KEY_AC_AUTO_ON,
         cmd_module=MODULE_PD,
-        cmd_operate="acAutoOutConfig",
-        cmd_params=lambda on: {"acAutoOutConfig": 1 if on else 0, "minAcOutSoc": 0},
+        cmd_operate="acAutoOnCfg",
+        cmd_params=lambda on: {"acAutoOnCfg": 1 if on else 0},
     ),
     EcoFlowSwitchDescription(
         key="ac_always_on",
@@ -157,6 +156,18 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
     ),
 
     # ── System ───────────────────────────────────────────────────────────
+    EcoFlowSwitchDescription(
+        key="bypass",
+        name="Bypass (Doorsluizen)",
+        icon="mdi:electric-switch",
+        state_key=KEY_AC_BYPASS_PAUSE,
+        # acAutoOutPause=0 → bypass actief → switch ON
+        # acAutoOutPause=1 → bypass gepauzeerd → switch OFF
+        inverted=True,
+        cmd_module=MODULE_PD,
+        cmd_operate="acAutoOutConfig",
+        cmd_params=lambda on: {"acAutoOutPause": 0 if on else 1},
+    ),
     EcoFlowSwitchDescription(
         key="beep_sound",
         name="Beep Sound",
