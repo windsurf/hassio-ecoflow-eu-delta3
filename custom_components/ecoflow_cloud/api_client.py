@@ -184,7 +184,7 @@ class EcoFlowPrivateAPI:
         """
         import base64
         b64_password = base64.b64encode(self._passwd.encode("utf-8")).decode("utf-8")
-        _LOGGER.warning(
+        _LOGGER.info(
             "EcoFlow login: email=%s pw_b64_prefix=%s…", self._email, b64_password[:8]
         )
         try:
@@ -203,7 +203,7 @@ class EcoFlowPrivateAPI:
 
         code = str(body.get("code", ""))
         msg  = body.get("message", "unknown error")
-        _LOGGER.warning(
+        _LOGGER.info(
             "EcoFlow login response: HTTP=%s code=%s msg=%s",
             resp.status_code, code, msg
         )
@@ -215,7 +215,7 @@ class EcoFlowPrivateAPI:
         user = data.get("user", data)
         self._token   = data.get("token", "")
         self._user_id = str(user.get("userId", user.get("id", "")))
-        _LOGGER.warning(
+        _LOGGER.info(
             "EcoFlow login SUCCESS: userId=%s token=%s…",
             self._user_id, self._token[:12]
         )
@@ -223,14 +223,17 @@ class EcoFlowPrivateAPI:
 
     def _make_client_id(self) -> str:
         """
-        ClientID format observed from STROMDAO tool:
-          ANDROID_520200810_1584935350613467137
-          = ANDROID_{8-char random hex/digits}_{userId as decimal string}
+        The EcoFlow MQTT broker authenticates the client ID and requires the
+        ANDROID_ prefix — other prefixes result in rc=5 (Not Authorized).
 
-        The userId is appended as a plain decimal number (not hex-encoded).
+        Format: ANDROID_{8-digit timestamp}_{userId}
+
+        NOTE: When the EcoFlow mobile app is also connected it uses the same
+        prefix with a different random part, so both sessions can coexist on
+        the broker. The root cause of commands being ignored must be sought
+        elsewhere (payload format, topic, or app-side exclusive lock).
         """
         import time as _time
-        # 8-char timestamp-based prefix (matches observed pattern like "520200810")
         random_part = str(int(_time.time()))[-8:]
         return f"ANDROID_{random_part}_{self._user_id}"
 
@@ -241,7 +244,7 @@ class EcoFlowPrivateAPI:
         """
         self._login()
 
-        _LOGGER.warning(
+        _LOGGER.info(
             "EcoFlow cert request: userId=%s token=%s…", self._user_id, self._token[:12]
         )
         try:
@@ -255,7 +258,7 @@ class EcoFlowPrivateAPI:
         except requests.RequestException as e:
             raise EcoFlowAPIError(f"MQTT cert request failed: {e}") from e
 
-        _LOGGER.warning("EcoFlow cert response: HTTP=%s code=%s data=%s",
+        _LOGGER.info("EcoFlow cert response: HTTP=%s code=%s data=%s",
                         resp.status_code, body.get("code"), body.get("data"))
 
         if str(body.get("code")) != "0":
@@ -264,7 +267,7 @@ class EcoFlowPrivateAPI:
 
         cert = body.get("data", {})
         client_id = self._make_client_id()
-        _LOGGER.warning(
+        _LOGGER.info(
             "EcoFlow MQTT creds: host=%s user=%s clientId=%s",
             cert.get("url"), cert.get("certificateAccount"), client_id
         )
