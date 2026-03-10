@@ -70,7 +70,7 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         native_step=AC_CHG_WATTS_STEP,
         mode=NumberMode.SLIDER,
         icon="mdi:transmission-tower-import",
-        state_key=KEY_MPPT_CFG_CHG_W,  # mppt.cfgChgWatts — geconfigureerde laadlimiet
+        state_key=KEY_MPPT_CFG_CHG_W,  # mppt.cfgChgWatts — configured charge power limit
         cmd_module=MODULE_MPPT,
         cmd_operate="acChgCfg",
         cmd_params_fn=lambda v: {
@@ -317,15 +317,16 @@ class EcoFlowNumberEntity(CoordinatorEntity[EcoflowCoordinator], NumberEntity):
         else:
             params = {desc.cmd_param_key: int(value)}
         cmd = {
-            "id":          str(int(time.time() * 1000)),
-            "version":     "1.0",
+            "id":          int(time.time() * 1000),
+            "version":     "1.1",
             "sn":          self._sn,
             "moduleType":  desc.cmd_module,
             "operateType": desc.cmd_operate,
             "params":      params,
         }
-        _LOGGER.debug("Number command → %s : %s", topic, cmd)
-        client.publish(topic, json.dumps(cmd), qos=1)
+        _LOGGER.info("EcoFlow: Number command → %s : %s", topic, cmd)
+        result = client.publish(topic, json.dumps(cmd), qos=0)
+        _LOGGER.debug("EcoFlow: Number publish result mid=%s rc=%s", result.mid, result.rc)
 
     async def async_set_native_value(self, value: float) -> None:
         await self.hass.async_add_executor_job(self._publish, value)
