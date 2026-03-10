@@ -215,6 +215,17 @@ logger:
 
 ## Changelog
 
+### v0.2.13 – Fix: entity key alignment
+
+- `switch` key `pv_charge_priority` → `solar_charge_priority` (matches entity ID)
+- `switch` name `Bypass (Doorsluizen)` → `Bypass` (English, key `bypass` now consistent)
+- `number` key `min_ac_soc` → `min_soc_for_ac_auto_on`
+- `number` key `standby_time` → `device_standby_time`
+- `number` key `ac_standby_time` → `ac_output_standby_time`
+- `number` key `dc12v_standby_time` → `dc_12v_standby_time`
+
+> **Note:** These are internal key renames only. Entity IDs in Home Assistant are unchanged — no cleanup required after upgrade.
+
 ### v0.2.12 – Nieuwe entiteiten + bugfixes + alignment
 
 **Nieuw: Select platform**
