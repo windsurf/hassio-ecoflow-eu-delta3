@@ -77,6 +77,16 @@ from .devices.delta3_1500 import (
     KEY_CHG_SUN_POWER,
     KEY_WIFI_RSSI,
     KEY_BP_POWER_SOC,
+    KEY_GEN_MIN_SOC,
+    KEY_GEN_MAX_SOC,
+    KEY_MPPT_BEEP,
+    KEY_AC_CFG_FREQ,
+    KEY_DC12V_OUT_VOLT,
+    KEY_DC12V_OUT_AMP,
+    KEY_SOC_FLOAT,
+    KEY_MAX_VOL_DIFF,
+    KEY_DC12V_STATE,
+    KEY_EMS_SYS_STATE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -101,6 +111,15 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
         device_class=SensorDeviceClass.BATTERY,
         state_class=SensorStateClass.MEASUREMENT,
         round_digits=0,
+    ),
+    EcoFlowSensorDescription(
+        key=KEY_SOC_FLOAT,
+        name="Battery Level (precise)",
+        native_unit_of_measurement=PERCENTAGE,
+        device_class=SensorDeviceClass.BATTERY,
+        state_class=SensorStateClass.MEASUREMENT,
+        round_digits=2,
+        entity_registry_enabled_default=False,
     ),
     EcoFlowSensorDescription(
         key=KEY_SOH,
@@ -221,6 +240,15 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
         round_digits=0,
         entity_registry_enabled_default=False,
     ),
+    EcoFlowSensorDescription(
+        key=KEY_MAX_VOL_DIFF,
+        name="Max Cell Voltage Difference",
+        native_unit_of_measurement=UnitOfElectricPotential.MILLIVOLT,
+        device_class=SensorDeviceClass.VOLTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        round_digits=0,
+        entity_registry_enabled_default=False,
+    ),
 
     # ── EMS ──────────────────────────────────────────────────────────────
     EcoFlowSensorDescription(
@@ -291,6 +319,14 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
         icon="mdi:power-plug",
         state_class=SensorStateClass.MEASUREMENT,
         round_digits=0,
+    ),
+    EcoFlowSensorDescription(
+        key=KEY_EMS_SYS_STATE,
+        name="System Charge/Discharge State",
+        icon="mdi:battery-arrow-up-outline",
+        state_class=SensorStateClass.MEASUREMENT,
+        round_digits=0,
+        entity_registry_enabled_default=False,
     ),
 
     # ── Extra battery kit ─────────────────────────────────────────────────
@@ -385,6 +421,15 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
         device_class=SensorDeviceClass.FREQUENCY,
         state_class=SensorStateClass.MEASUREMENT,
         round_digits=0,
+    ),
+    EcoFlowSensorDescription(
+        key=KEY_AC_CFG_FREQ,
+        name="AC Configured Frequency",
+        native_unit_of_measurement=UnitOfFrequency.HERTZ,
+        device_class=SensorDeviceClass.FREQUENCY,
+        state_class=SensorStateClass.MEASUREMENT,
+        round_digits=0,
+        entity_registry_enabled_default=False,
     ),
     EcoFlowSensorDescription(
         key=KEY_AC_FAST_CHG_W,
@@ -516,6 +561,14 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         round_digits=1,
+    ),
+    EcoFlowSensorDescription(
+        key=KEY_DC12V_STATE,
+        name="DC 12V Port State",
+        icon="mdi:car-electric",
+        state_class=SensorStateClass.MEASUREMENT,
+        round_digits=0,
+        entity_registry_enabled_default=False,
     ),
     EcoFlowSensorDescription(
         key=KEY_DC_OUT_TEMP,
@@ -765,6 +818,36 @@ SENSOR_DESCRIPTIONS: tuple[EcoFlowSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         entity_registry_enabled_default=False,
         round_digits=1,
+    ),
+
+    # ── Generator SOC thresholds (bms_emsStatus) ──────────────────────────
+    EcoFlowSensorDescription(
+        key=KEY_GEN_MIN_SOC,
+        name="Generator Start SOC",
+        native_unit_of_measurement=PERCENTAGE,
+        icon="mdi:engine-outline",
+        state_class=SensorStateClass.MEASUREMENT,
+        round_digits=0,
+        entity_registry_enabled_default=False,
+    ),
+    EcoFlowSensorDescription(
+        key=KEY_GEN_MAX_SOC,
+        name="Generator Stop SOC",
+        native_unit_of_measurement=PERCENTAGE,
+        icon="mdi:engine-off-outline",
+        state_class=SensorStateClass.MEASUREMENT,
+        round_digits=0,
+        entity_registry_enabled_default=False,
+    ),
+
+    # ── MPPT beep state ───────────────────────────────────────────────────
+    EcoFlowSensorDescription(
+        key=KEY_MPPT_BEEP,
+        name="MPPT Beep",
+        icon="mdi:volume-high",
+        state_class=SensorStateClass.MEASUREMENT,
+        round_digits=0,
+        entity_registry_enabled_default=False,
     ),
 )
 
