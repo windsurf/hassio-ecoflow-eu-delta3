@@ -215,6 +215,34 @@ logger:
 
 ## Changelog
 
+### v0.2.14 – Fix: acOutCfg silent reject (outFreq) + MQTT improvements
+
+**Root cause fixed: HA switch commands silently rejected by device**
+
+- Fixed: `acOutCfg` command parameter `outFreq` changed from enum index `1` to Hz literal `50`
+  — the device silently rejected `outFreq=1` without any error or reply; `outFreq=50` is required
+- Fixed: command publish QoS changed from `QoS=1` to `QoS=0` (matches EcoFlow app behaviour)
+- Fixed: command payload `version` changed from `"1.0"` to `"1.1"` (matches app)
+- Fixed: command payload `id` changed from string to integer (matches app)
+- Added: `set_reply` and `get_reply` MQTT topic subscriptions — device acknowledgements now visible in log
+- Added: `latestQuotas` (Shape F) parsing in `coordinator.py` — full state dump on get_reply
+- Added: periodic MQTT recertification every 10 minutes (`__init__.py`)
+
+**State key corrections (verified via live MQTT trace, app toggle):**
+
+- `ac_auto_on`: state key `pd.acAutoOnCfg` → `pd.watchIsConfig`
+- `dc_output`: `cmd_module` `MODULE_MPPT` → `MODULE_PD`
+- `beep_sound`: `cmd_module` `MODULE_PD` → `MODULE_MPPT`
+
+**Logging improvements:**
+
+- `api_client.py`: WARNING → INFO for setup messages; INFO/DEBUG privacy split (credentials never logged)
+- `__init__.py`: `on_publish` ACK callback added; setup logs WARNING → INFO
+- `switch.py`, `number.py`, `select.py`: INFO log per command (topic + full payload)
+
+> **Note:** `acOutCfg` (AC Output switch) confirmed working after this fix.  
+> `dcOutCfg` (DC Output) and `usb_output` commands still under investigation — broker ACK received but no device reply. To be resolved in v0.2.15.
+
 ### v0.2.13 – Fix: entity key alignment
 
 - `switch` key `pv_charge_priority` → `solar_charge_priority` (matches entity ID)
@@ -226,30 +254,30 @@ logger:
 
 > **Note:** These are internal key renames only. Entity IDs in Home Assistant are unchanged — no cleanup required after upgrade.
 
-### v0.2.12 – Nieuwe entiteiten + bugfixes + alignment
+### v0.2.12 – New entities + bugfixes + alignment
 
-**Nieuw: Select platform**
-- Added: `select.py` — nieuw platform voor keuzelijsten
-- Added: `dc_charge_current` — DC laadstroom instelbaar: 4 A / 6 A / 8 A (`mppt.dcChgCurrent`)
-- `__init__.py`: `PLATFORMS` uitgebreid met `Platform.SELECT`
+**New: Select platform**
+- Added: `select.py` — new platform for list-based controls
+- Added: `dc_charge_current` — DC charge current configurable: 4 A / 6 A / 8 A (`mppt.dcChgCurrent`)
+- `__init__.py`: `PLATFORMS` extended with `Platform.SELECT`
 
-**Nieuw: Bypass switch**
-- Added: `switch.bypass` — Bypass (doorsluizen) aan/uit (`pd.acAutoOutPause`, `inverted=True`)
+**New: Bypass switch**
+- Added: `switch.bypass` — enable/disable bypass mode (`pd.acAutoOutPause`, `inverted=True`)
 
-**Nieuw: Generator SOC controls (number)**
-- Added: `number.generator_start_soc` — Generator start-SOC 0–30% (`bms_emsStatus.minOpenOilEb`)
-- Added: `number.generator_stop_soc` — Generator stop-SOC 50–100% (`bms_emsStatus.maxCloseOilEb`)
+**New: Generator SOC controls (number)**
+- Added: `number.generator_start_soc` — generator start SOC 0–30% (`bms_emsStatus.minOpenOilEb`)
+- Added: `number.generator_stop_soc` — generator stop SOC 50–100% (`bms_emsStatus.maxCloseOilEb`)
 
-**Nieuw: Sensors (+9)**
-- Added: `Battery Level (precise)` — float SOC (`bms_bmsStatus.f32ShowSoc`, 2 decimalen, off)
-- Added: `Max Cell Voltage Difference` — batterijbalans indicator in mV (`bms_bmsStatus.maxVolDiff`, off)
-- Added: `AC Configured Frequency` — geconfigureerde AC frequentie in Hz (`inv.cfgAcOutFreq`, off)
-- Added: `DC 12V Port State` — 12V-poort staat sensor (`mppt.carState`, off)
-- Added: `System Charge/Discharge State` — EMS laad/ontlaad toestand (`bms_emsStatus.sysChgDsgState`, off)
+**New: Sensors (+9)**
+- Added: `Battery Level (precise)` — float SOC (`bms_bmsStatus.f32ShowSoc`, 2 decimals, off)
+- Added: `Max Cell Voltage Difference` — battery balance indicator in mV (`bms_bmsStatus.maxVolDiff`, off)
+- Added: `AC Configured Frequency` — configured AC frequency in Hz (`inv.cfgAcOutFreq`, off)
+- Added: `DC 12V Port State` — 12V port state sensor (`mppt.carState`, off)
+- Added: `System Charge/Discharge State` — EMS charge/discharge state (`bms_emsStatus.sysChgDsgState`, off)
 - Added: `Generator Start SOC` sensor (`bms_emsStatus.minOpenOilEb`, off)
 - Added: `Generator Stop SOC` sensor (`bms_emsStatus.maxCloseOilEb`, off)
 - Added: `MPPT Beep State` sensor (`mppt.beepState`, off)
-- Added: `KEY_GEN_MIN_SOC`, `KEY_GEN_MAX_SOC`, `KEY_EMS_SYS_STATE`, `KEY_SOC_FLOAT`, `KEY_MAX_VOL_DIFF`, `KEY_DC12V_STATE`, `KEY_AC_CFG_FREQ`, `KEY_MPPT_BEEP` — nieuwe constants in `delta3_1500.py`
+- Added: `KEY_GEN_MIN_SOC`, `KEY_GEN_MAX_SOC`, `KEY_EMS_SYS_STATE`, `KEY_SOC_FLOAT`, `KEY_MAX_VOL_DIFF`, `KEY_DC12V_STATE`, `KEY_AC_CFG_FREQ`, `KEY_MPPT_BEEP` — new constants in `delta3_1500.py`
 
 **Bugfix: switch state_keys (4× inv → mppt)**
 - `KEY_AC_ENABLED`: `inv.cfgAcEnabled` → `mppt.cfgAcEnabled`
@@ -257,30 +285,30 @@ logger:
 - `KEY_AC_CHG_PAUSE`: `inv.chgPauseFlag` → `mppt.chgPauseFlag`
 - `KEY_AC_STANDBY_TIME`: `inv.standbyMins` → `mppt.acStandbyMins`
 
-*Reden: `inv.*` sleutels verschijnen alleen in de zeldzame volledige statusdump (~elke 5 min). `mppt.*` varianten zijn structureel aanwezig in de ~30s update-cyclus en geven betrouwbare state.*
+*Reason: `inv.*` keys only appear in the infrequent full status dump (~every 5 min). The `mppt.*` equivalents are consistently present in the ~30s update cycle and provide reliable state.*
 
-**Bugfix: switch commando-parameters**
+**Bugfix: switch command parameters**
 - `ac_output`: `outFreq: 255, outVol: 255, xboost: 255` → `outFreq: 1, outVol: 230, xboost: 0`
 - `x_boost`: `outFreq: 255, outVol: 255` → `outFreq: 1, outVol: 230`
-- `ac_charging`: overbodige `slowChgWatts: 255, fastChgWatts: 255` verwijderd — alleen `chgPauseFlag` sturen
+- `ac_charging`: removed redundant `slowChgWatts: 255, fastChgWatts: 255` — only `chgPauseFlag` is sent
 
-*Reden: waarde 255 wordt door het apparaat genegeerd; correcte EU-waarden zijn outFreq=1 (50 Hz), outVol=230.*
+*Reason: value 255 is silently ignored by the device; correct EU values are outFreq=1 (50 Hz), outVol=230.*
 
-**Bugfix: ac_auto_on / ac_always_on commando's gescheiden**
-- `ac_auto_on`: `cmd_operate` was `acAutoOutConfig` → gecorrigeerd naar `acAutoOnCfg`
-- Beide switches stuurden hetzelfde commando; nu elk eigen `operateType` en payload
+**Bugfix: ac_auto_on / ac_always_on commands separated**
+- `ac_auto_on`: `cmd_operate` was `acAutoOutConfig` → corrected to `acAutoOnCfg`
+- Both switches were sending the same command; each now has its own `operateType` and payload
 
 **Fix: delta3_1500.py alignment**
-- Alle constants herschreven met uniforme kolomindeling: `=` op kolom 20, `#` op kolom 55
+- All constants rewritten with uniform column alignment: `=` at column 20, `#` at column 55
 
 **number.py**
-- `standby_time` en `ac_standby_time` max: `720` → `1440` min (app ondersteunt 24u)
-- Hardcoded `cmd_module` integers vervangen door named constants `MODULE_PD`, `MODULE_BMS`, `MODULE_MPPT`
+- `standby_time` and `ac_standby_time` max: `720` → `1440` min (app supports 24h)
+- Hardcoded `cmd_module` integers replaced by named constants `MODULE_PD`, `MODULE_BMS`, `MODULE_MPPT`
 
-**Upgrade procedure:** HACS update → volledige HA-herstart vereist.
+**Upgrade procedure:** HACS update → full HA restart required.
 
-**Stale entities handmatig verwijderen (Settings → Entiteiten → filter ecoflow):**
-- `switch.ecoflow_delta_3_1500_x_boost_2` en `switch.ecoflow_delta_3_1500_beep_sound_2` (dubbele registraties uit v0.2.11 → v0.2.12 upgrade)
+**Stale entities — remove manually (Settings → Entities → filter ecoflow):**
+- `switch.ecoflow_delta_3_1500_x_boost_2` and `switch.ecoflow_delta_3_1500_beep_sound_2` (duplicate registrations from v0.2.11 → v0.2.12 upgrade)
 
 ---
 
