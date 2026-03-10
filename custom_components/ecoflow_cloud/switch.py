@@ -119,7 +119,7 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
 
     # ── Charging behaviour ────────────────────────────────────────────────
     EcoFlowSwitchDescription(
-        key="pv_charge_priority",
+        key="solar_charge_priority",
         name="Solar Charge Priority",
         icon="mdi:solar-power",
         state_key=KEY_PV_CHG_PRIO,
@@ -158,7 +158,7 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
     # ── System ───────────────────────────────────────────────────────────
     EcoFlowSwitchDescription(
         key="bypass",
-        name="Bypass (Doorsluizen)",
+        name="Bypass",
         icon="mdi:electric-switch",
         state_key=KEY_AC_BYPASS_PAUSE,
         # acAutoOutPause=0 → bypass actief → switch ON
