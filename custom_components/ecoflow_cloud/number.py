@@ -33,12 +33,20 @@ from .devices.delta3_1500 import (
     KEY_DC12V_STANDBY,
     KEY_MIN_AC_SOC,
     KEY_BP_POWER_SOC,
+    KEY_GEN_MIN_SOC,
+    KEY_GEN_MAX_SOC,
     AC_CHG_WATTS_MIN,
     AC_CHG_WATTS_MAX,
     AC_CHG_WATTS_STEP,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# Module type constants (EcoFlow MQTT protocol) — mirrors switch.py
+MODULE_PD   = 1
+MODULE_BMS  = 2
+MODULE_INV  = 3
+MODULE_MPPT = 5
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -63,7 +71,7 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         mode=NumberMode.SLIDER,
         icon="mdi:transmission-tower-import",
         state_key=KEY_MPPT_CFG_CHG_W,  # mppt.cfgChgWatts — geconfigureerde laadlimiet
-        cmd_module=5,  # MPPT
+        cmd_module=MODULE_MPPT,
         cmd_operate="acChgCfg",
         cmd_params_fn=lambda v: {
             "slowChgWatts": int(v),
@@ -83,7 +91,7 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         mode=NumberMode.SLIDER,
         icon="mdi:battery-arrow-up",
         state_key=KEY_EMS_MAX_CHG_SOC,
-        cmd_module=2,  # BMS
+        cmd_module=MODULE_BMS,
         cmd_operate="maxChargeSoc",
         cmd_param_key="maxChargeSoc",
     ),
@@ -97,9 +105,37 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         mode=NumberMode.SLIDER,
         icon="mdi:battery-arrow-down",
         state_key=KEY_EMS_MIN_DSG_SOC,
-        cmd_module=2,  # BMS
+        cmd_module=MODULE_BMS,
         cmd_operate="minDsgSoc",
         cmd_param_key="minDsgSoc",
+    ),
+    EcoFlowNumberDescription(
+        key="generator_start_soc",
+        name="Generator Start SOC",
+        native_unit_of_measurement=PERCENTAGE,
+        native_min_value=0,
+        native_max_value=30,
+        native_step=5,
+        mode=NumberMode.SLIDER,
+        icon="mdi:engine-outline",
+        state_key=KEY_GEN_MIN_SOC,
+        cmd_module=MODULE_BMS,
+        cmd_operate="openOilSoc",
+        cmd_param_key="openOilSoc",
+    ),
+    EcoFlowNumberDescription(
+        key="generator_stop_soc",
+        name="Generator Stop SOC",
+        native_unit_of_measurement=PERCENTAGE,
+        native_min_value=50,
+        native_max_value=100,
+        native_step=5,
+        mode=NumberMode.SLIDER,
+        icon="mdi:engine-off-outline",
+        state_key=KEY_GEN_MAX_SOC,
+        cmd_module=MODULE_BMS,
+        cmd_operate="closeOilSoc",
+        cmd_param_key="closeOilSoc",
     ),
     EcoFlowNumberDescription(
         key="battery_protection_soc",
@@ -111,7 +147,7 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         mode=NumberMode.SLIDER,
         icon="mdi:battery-lock",
         state_key=KEY_BP_POWER_SOC,
-        cmd_module=1,  # PD
+        cmd_module=MODULE_PD,
         cmd_operate="watthConfig",
         cmd_params_fn=lambda v: {
             "isConfig":   1,
@@ -130,7 +166,7 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         mode=NumberMode.SLIDER,
         icon="mdi:power-plug-outline",
         state_key=KEY_MIN_AC_SOC,
-        cmd_module=1,  # PD
+        cmd_module=MODULE_PD,
         cmd_operate="acAutoOutConfig",
         cmd_params_fn=lambda v: {
             "acAutoOutConfig": 255,
@@ -144,12 +180,12 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         name="Device Standby Time",
         native_unit_of_measurement="min",
         native_min_value=0,
-        native_max_value=720,
+        native_max_value=1440,
         native_step=30,
         mode=NumberMode.BOX,
         icon="mdi:sleep",
         state_key=KEY_STANDBY_TIME,
-        cmd_module=1,  # PD
+        cmd_module=MODULE_PD,
         cmd_operate="standbyTime",
         cmd_param_key="standbyMin",
     ),
@@ -163,7 +199,7 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         mode=NumberMode.BOX,
         icon="mdi:power-sleep",
         state_key=KEY_AC_STANDBY_TIME,
-        cmd_module=5,  # MPPT
+        cmd_module=MODULE_MPPT,
         cmd_operate="standbyTime",
         cmd_param_key="standbyMins",
     ),
@@ -177,7 +213,7 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         mode=NumberMode.BOX,
         icon="mdi:car-clock",
         state_key=KEY_DC12V_STANDBY,
-        cmd_module=5,  # MPPT
+        cmd_module=MODULE_MPPT,
         cmd_operate="carStandby",
         cmd_param_key="standbyMins",
     ),
@@ -193,7 +229,7 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         mode=NumberMode.SLIDER,
         icon="mdi:brightness-percent",
         state_key=KEY_LCD_BRIGHTNESS,
-        cmd_module=1,  # PD
+        cmd_module=MODULE_PD,
         cmd_operate="lcdCfg",
         cmd_param_key="brightness",
     ),
@@ -207,7 +243,7 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         mode=NumberMode.BOX,
         icon="mdi:monitor-off",
         state_key=KEY_LCD_TIMEOUT,
-        cmd_module=1,  # PD
+        cmd_module=MODULE_PD,
         cmd_operate="lcdCfg",
         cmd_param_key="delayOff",
     ),
