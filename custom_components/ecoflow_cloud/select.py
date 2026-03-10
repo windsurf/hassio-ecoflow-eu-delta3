@@ -130,15 +130,16 @@ class EcoFlowSelectEntity(CoordinatorEntity[EcoflowCoordinator], SelectEntity):
             return
         desc = self.entity_description
         cmd = {
-            "id":          str(int(time.time() * 1000)),
-            "version":     "1.0",
+            "id":          int(time.time() * 1000),
+            "version":     "1.1",
             "sn":          self._sn,
             "moduleType":  desc.cmd_module,
             "operateType": desc.cmd_operate,
             "params":      {desc.cmd_param_key: raw_value},
         }
-        _LOGGER.debug("Select command → %s : %s", topic, cmd)
-        client.publish(topic, json.dumps(cmd), qos=1)
+        _LOGGER.info("EcoFlow: Select command → %s : %s", topic, cmd)
+        result = client.publish(topic, json.dumps(cmd), qos=0)
+        _LOGGER.debug("EcoFlow: Select publish result mid=%s rc=%s", result.mid, result.rc)
 
     async def async_select_option(self, option: str) -> None:
         raw = self.entity_description.options_map.get(option)
