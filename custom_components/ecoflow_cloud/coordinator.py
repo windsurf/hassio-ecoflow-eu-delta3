@@ -111,7 +111,7 @@ class EcoflowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             quota_map = data_dict.get("quotaMap")
             if isinstance(quota_map, dict):
                 new_data = {k: v for k, v in quota_map.items() if not isinstance(v, (list, dict))}
-                _LOGGER.info("MQTT latestQuotas: %d keys received", len(new_data))
+                _LOGGER.debug("MQTT latestQuotas: %d keys received", len(new_data))
         elif type_code and isinstance(params, dict):
             for k, v in params.items():
                 new_data[f"{type_code}.{k}"] = v
