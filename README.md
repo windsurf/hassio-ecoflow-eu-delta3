@@ -215,6 +215,18 @@ logger:
 
 ## Changelog
 
+### v0.2.16 – Fix: version 1.0 + pvChangePrio + KEY_AC_ENABLED + set_reply diagnostics
+
+- Fixed: `version` field in all set commands changed from `"1.1"` to `"1.0"` (matches device protocol for set operations)
+- Fixed: `solar_charge_priority` — `operateType` corrected from `pvChangeSet` to `pvChangePrio`; `cmd_module` corrected from `MODULE_MPPT` (5) to `MODULE_PD` (1)
+- Fixed: `KEY_AC_ENABLED` state key corrected from `pd.acEnabled` to `mppt.cfgAcEnabled` (present in ~30s MPPT cycle vs. infrequent INV dump)
+- Improved: `set_reply` handler now parses JSON before topic check; logs `operateType` and return `code` at INFO level for direct command diagnosis
+- Fixed: `set_reply` crash on malformed payload — wrapped in try/except, raw payload logged on parse error
+
+**Still under investigation:**
+
+- `dcOutCfg` / `usb_output`: broker ACK received but no device reply (ack: 0). Correct params still unknown. To be resolved in v0.2.17 via wildcard MQTT trace.
+
 ### v0.2.15 – Fix: payload corrections (acOutCfg/mpptCar/acChgCfg/quietMode) + startup delay
 
 **MQTT payload corrections based on tolwi reference implementation and live log verification:**
