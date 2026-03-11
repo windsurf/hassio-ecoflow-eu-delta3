@@ -71,7 +71,7 @@ KEY_AC_IN_FREQ      = "inv.acInFreq"                   # AC input frequency     
 KEY_AC_OUT_VOLT     = "inv.invOutVol"                  # AC output voltage         (mV)
 KEY_AC_OUT_AMP      = "inv.invOutAmp"                  # AC output current         (mA)
 KEY_AC_OUT_FREQ_RT  = "inv.invOutFreq"                 # AC output freq (actual)   (Hz)
-KEY_AC_ENABLED      = "mppt.cfgAcEnabled"               # AC output on/off          (0/1) -- tolwi reference; pd.acEnabled did not reflect toggle reliably
+KEY_AC_ENABLED      = "pd.acEnabled"                   # AC output on/off          (0/1) -- v0.2.19: corrected to pd (wildcard trace confirms pd.acEnabled=0 after APP command)
 KEY_AC_XBOOST       = "mppt.cfgAcXboost"               # X-Boost on/off            (0/1) -- mppt structural
 KEY_AC_CFG_FREQ     = "inv.cfgAcOutFreq"               # Configured AC freq        (Hz)
 KEY_AC_CFG_VOLT     = "inv.cfgAcOutVol"                # Configured AC voltage     (V)
