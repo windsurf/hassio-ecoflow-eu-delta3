@@ -215,6 +215,30 @@ logger:
 
 ## Changelog
 
+### v0.2.15 – Fix: payload corrections (acOutCfg/mpptCar/acChgCfg/quietMode) + startup delay
+
+**MQTT payload corrections based on tolwi reference implementation and live log verification:**
+
+- Fixed: `ac_output` and `x_boost` — `cmd_module` changed from `MODULE_PD` (1) to `MODULE_MPPT` (5);
+  params `outFreq`/`outVol` replaced with `out_freq: 255` / `out_voltage: -1` (tolwi-compatible)
+- Fixed: `dc_output` — `operateType` changed from `dc24vCfg` to `mpptCar`; `cmd_module` changed
+  from `MODULE_PD` (1) to `MODULE_MPPT` (5); confirmed working (inv.outputWatts → 0 on AC off)
+- Fixed: `ac_charging` — `chgWatts: 255` added to `acChgCfg` params (keep current wattage);
+  was missing, causing potential charge power reset
+- Fixed: `beep_sound` — `operateType` changed from `beepCfg` to `quietMode`; logic inverted:
+  `enabled: 0` = beep on, `enabled: 1` = beep off (quietMode semantics)
+- Fixed: `ac_charging_speed` (number) — params changed from `slowChgWatts`/`fastChgWatts`/`chgPauseFlag: 0`
+  to `chgWatts`/`chgPauseFlag: 255` (255 = keep current pause state unchanged)
+- Fixed: startup state — added 5s delay in `on_connect` before get-all request;
+  device returns only timing config immediately after connect; full state dump (PD:58, MPPT:36, INV:28 keys)
+  only available after device init cycle (~5s); fixes all switches showing incorrect state after HA restart
+
+**Still under investigation (carry-over from v0.2.14):**
+
+- `dcOutCfg` / `usb_output`: broker ACK received but no device reply (silent reject).
+  Correct params still unknown. To be resolved in v0.2.16 via app-toggle + wildcard MQTT trace.
+
+
 ### v0.2.14 – Fix: acOutCfg silent reject (outFreq) + MQTT improvements
 
 **Root cause fixed: HA switch commands silently rejected by device**
