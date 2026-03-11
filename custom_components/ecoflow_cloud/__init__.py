@@ -145,6 +145,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             if topic_get_reply:
                 c.subscribe(topic_get_reply, qos=1)
                 _LOGGER.info("EcoFlow: MQTT subscribed to get_reply topic")
+            # Delay 5s: device sends only timing config immediately after connect.
+            # Full state dump (58+ keys) returned only after device init cycle completes.
+            # Confirmed by log analysis: get-all at t=0 returns only pd.pdInfoFull;
+            # get-all at t=5s returns full module dumps (PD:58, MPPT:36, INV:28 keys).
+            _LOGGER.debug("EcoFlow: waiting 5s for device init before get-all request")
+            time.sleep(5)
             _request_full_state(c)
         else:
             _LOGGER.error("EcoFlow: MQTT connect FAILED rc=%d for %s", rc, sn)
