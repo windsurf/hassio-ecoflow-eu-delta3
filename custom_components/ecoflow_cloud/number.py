@@ -316,7 +316,7 @@ class EcoFlowNumberEntity(CoordinatorEntity[EcoflowCoordinator], NumberEntity):
         else:
             params = {desc.cmd_param_key: int(value)}
         cmd = {
-            "id":          int(time.time() * 1000),
+            "id":          int(time.time()),   # v0.2.17: epoch seconden (was epoch ms — 41-bit, te groot voor 32-bit uint)
             "version":     "1.0",
             "sn":          self._sn,
             "moduleType":  desc.cmd_module,
