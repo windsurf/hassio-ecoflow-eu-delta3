@@ -58,13 +58,13 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
         name="AC Output",
         icon="mdi:power-socket-eu",
         state_key=KEY_AC_ENABLED,
-        cmd_module=MODULE_PD,
+        cmd_module=MODULE_MPPT,
         cmd_operate="acOutCfg",
         cmd_params=lambda on: {
-            "enabled": 1 if on else 0,
-            "xboost":  0,
-            "outFreq": 50,   # 50 Hz (Hz literal, not enum)
-            "outVol":  230,
+            "enabled":     1 if on else 0,
+            "xboost":      255,
+            "out_freq":    255,
+            "out_voltage": -1,
         },
     ),
     EcoFlowSwitchDescription(
@@ -72,13 +72,13 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
         name="X-Boost",
         icon="mdi:lightning-bolt",
         state_key=KEY_AC_XBOOST,
-        cmd_module=MODULE_PD,
+        cmd_module=MODULE_MPPT,
         cmd_operate="acOutCfg",
         cmd_params=lambda on: {
-            "enabled": 255,
-            "xboost":  1 if on else 0,
-            "outFreq": 50,   # 50 Hz (Hz literal, not enum)
-            "outVol":  230,
+            "enabled":     255,
+            "xboost":      1 if on else 0,
+            "out_freq":    255,
+            "out_voltage": -1,
         },
     ),
     EcoFlowSwitchDescription(
@@ -95,8 +95,8 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
         name="DC Output",
         icon="mdi:car-electric",
         state_key=KEY_DC_OUT_STATE,
-        cmd_module=MODULE_PD,
-        cmd_operate="dc24vCfg",
+        cmd_module=MODULE_MPPT,
+        cmd_operate="mpptCar",
         cmd_params=lambda on: {"enabled": 1 if on else 0},
     ),
 
@@ -111,8 +111,9 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
         inverted=True,
         cmd_module=MODULE_MPPT,
         cmd_operate="acChgCfg",
-        # slowChgWatts/fastChgWatts omitted: device ignores 255-placeholders
+        # chgWatts:255 = keep current setting; chgPauseFlag controls pause
         cmd_params=lambda on: {
+            "chgWatts":     255,
             "chgPauseFlag": 0 if on else 1,
         },
     ),
@@ -161,8 +162,8 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
         name="Bypass",
         icon="mdi:electric-switch",
         state_key=KEY_AC_BYPASS_PAUSE,
-        # acAutoOutPause=0 → bypass actief → switch ON
-        # acAutoOutPause=1 → bypass gepauzeerd → switch OFF
+        # acAutoOutPause=0 → bypass active → switch ON
+        # acAutoOutPause=1 → bypass paused → switch OFF
         inverted=True,
         cmd_module=MODULE_PD,
         cmd_operate="acAutoOutConfig",
@@ -174,8 +175,8 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
         icon="mdi:volume-high",
         state_key=KEY_BEEP_MODE,
         cmd_module=MODULE_MPPT,
-        cmd_operate="beepCfg",
-        cmd_params=lambda on: {"enabled": 1 if on else 0},
+        cmd_operate="quietMode",
+        cmd_params=lambda on: {"enabled": 0 if on else 1},  # quietMode: 0=beep on, 1=beep off
     ),
 )
 
