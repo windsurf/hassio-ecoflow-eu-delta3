@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import logging
-import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -21,6 +20,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, MANUFACTURER
 from .coordinator import EcoflowCoordinator
+from . import _next_id
 from .devices.delta3_1500 import (
     DEVICE_MODEL,
     KEY_EMS_MAX_CHG_SOC,
@@ -316,7 +316,7 @@ class EcoFlowNumberEntity(CoordinatorEntity[EcoflowCoordinator], NumberEntity):
         else:
             params = {desc.cmd_param_key: int(value)}
         cmd = {
-            "id":          int(time.time()),   # v0.2.17: epoch seconden (was epoch ms — 41-bit, te groot voor 32-bit uint)
+            "id":          _next_id(),
             "version":     "1.0",
             "sn":          self._sn,
             "moduleType":  desc.cmd_module,
