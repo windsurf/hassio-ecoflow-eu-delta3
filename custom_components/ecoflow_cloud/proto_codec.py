@@ -1,0 +1,240 @@
+"""
+Pure-Python protobuf encoder for EcoFlow Delta 3 MQTT commands.
+
+The Delta 3 series (D361/D371) uses protobuf-encoded binary messages on the
+/set and /get topics instead of the JSON format used by older devices.
+
+Wire format derived from:
+  - nalditopr gist (Delta 3 Node-Red flow): github.com/nalditopr/493af377e9928b88c2639a9e1607f127
+  - foxthefox ioBroker.ecoflow-mqtt: github.com/foxthefox/ioBroker.ecoflow-mqtt
+
+Message structure (reverse-engineered):
+    root {
+      field 1 (LEN) = subMessage {          # outer wrapper
+        field 1 (LEN) = innerMessage {      # command payload
+          ... command-specific fields ...
+        }
+        field 2  (varint) = 32              # static
+        field 3  (varint) = 2               # static
+        field 4  (varint) = 1               # static
+        field 5  (varint) = 1               # static
+        field 8  (varint) = 254             # static
+        field 9  (varint) = 17              # static
+        field 10 (varint) = <operate_code>  # command selector
+        field 11 (varint) = 1               # static
+        field 14 (varint) = <cmd_id>        # timestamp (32-bit, epoch seconds)
+        field 15 (varint) = 1               # static
+        field 16 (varint) = 19              # static
+        field 17 (varint) = 1               # static
+      }
+    }
+
+Operate codes (gist + foxthefox analysis):
+    0  = get (property poll, session initiation)
+    2  = beep / quietMode
+    3  = general: charge target, ac_charging, mpptCar, acOutCfg, acChgCfg
+    11 = self-powered on (complex inner)
+"""
+from __future__ import annotations
+
+import time
+from typing import Optional
+
+
+# ---------------------------------------------------------------------------
+# Wire encoding primitives
+# ---------------------------------------------------------------------------
+
+def _varint(v: int) -> bytes:
+    """Encode integer as protobuf varint (little-endian 7-bit groups)."""
+    v = v & 0xFFFFFFFF   # clamp to 32-bit unsigned
+    buf: list[int] = []
+    while True:
+        byte = v & 0x7F
+        v >>= 7
+        if v:
+            buf.append(byte | 0x80)
+        else:
+            buf.append(byte)
+            break
+    return bytes(buf)
+
+
+def _fv(field_num: int, value: int) -> bytes:
+    """Encode varint field: tag(wire=0) + value."""
+    return _varint((field_num << 3) | 0) + _varint(value & 0xFFFFFFFF)
+
+
+def _fb(field_num: int, data: bytes) -> bytes:
+    """Encode length-delimited field: tag(wire=2) + length + data."""
+    return _varint((field_num << 3) | 2) + _varint(len(data)) + data
+
+
+def _fs(field_num: int, text: str) -> bytes:
+    """Encode string field (UTF-8)."""
+    return _fb(field_num, text.encode("utf-8"))
+
+
+# ---------------------------------------------------------------------------
+# GET command (session initiation + keepalive)
+# ---------------------------------------------------------------------------
+
+# Session IDs observed in nalditopr gist (field 14 of inner GET message).
+# These appear to be app-instance identifiers; we use a fixed value derived
+# from the device serial to stay consistent across restarts.
+_GET_APP_ID = 128301330
+
+
+def build_get(cmd_id: Optional[int] = None) -> bytes:
+    """
+    Build a protobuf GET message (session ping / property request).
+
+    The APP sends this every ~15 s. Sending it allows the device to
+    recognise our MQTT session as an active app session and accept
+    subsequent set-commands.
+
+    Structure:
+        root { field1 { field1 { field14=<app_id> field23="Android" } } }
+    """
+    if cmd_id is None:
+        cmd_id = int(time.time()) & 0xFFFFFFFF
+    inner = _fv(14, _GET_APP_ID) + _fs(23, "Android")
+    outer = _fb(1, inner)
+    return _fb(1, outer)
+
+
+# ---------------------------------------------------------------------------
+# SET command wrapper
+# ---------------------------------------------------------------------------
+
+def _wrap_cmd(inner_fields: bytes, operate_code: int, cmd_id: int) -> bytes:
+    """Wrap inner command fields in the standard Delta 3 outer envelope."""
+    outer = (
+        _fb(1, inner_fields) +          # NestedsubMesssage_1
+        _fv(2, 32) + _fv(3, 2) + _fv(4, 1) + _fv(5, 1) +
+        _fv(8, 254) + _fv(9, 17) +
+        _fv(10, operate_code) +
+        _fv(11, 1) +
+        _fv(14, cmd_id & 0xFFFFFFFF) +
+        _fv(15, 1) + _fv(16, 19) + _fv(17, 1)
+    )
+    return _fb(1, outer)
+
+
+# ---------------------------------------------------------------------------
+# Command builders  (operate_codes from nalditopr gist + foxthefox)
+# ---------------------------------------------------------------------------
+
+def _ts() -> int:
+    return int(time.time()) & 0xFFFFFFFF
+
+
+def build_ac_output(enabled: bool) -> bytes:
+    """AC output ON/OFF — operate_code 3, inner field 2 (acOut)."""
+    # Field 2 in inner = acOut (0/1)
+    inner = _fv(2, 1 if enabled else 0)
+    return _wrap_cmd(inner, 3, _ts())
+
+def build_xboost(enabled: bool) -> bytes:
+    """X-Boost ON/OFF — operate_code 3, inner field 1 (xboost).
+    
+    X-Boost is a separate field within the same acOutCfg operate_code (3).
+    Inner field 1 = xboost enable (0/1).
+    Field assignment derived from nalditopr gist acOutCfg structure.
+    """
+    inner = _fv(1, 1 if enabled else 0)
+    return _wrap_cmd(inner, 3, _ts())
+
+
+def build_dc_output(enabled: bool) -> bytes:
+    """DC/car output ON/OFF — operate_code 3, inner field 3."""
+    inner = _fv(3, 1 if enabled else 0)
+    return _wrap_cmd(inner, 3, _ts())
+
+
+def build_ac_charging(enabled: bool) -> bytes:
+    """AC charging pause ON/OFF — operate_code 3, inner field 5."""
+    # field 5 = chgPauseFlag: 0 = charging active, 1 = paused
+    inner = _fv(5, 0 if enabled else 1)
+    return _wrap_cmd(inner, 3, _ts())
+
+
+def build_beep(enabled: bool) -> bytes:
+    """Beep sound ON/OFF — operate_code 2, inner field 9."""
+    # field 9 = enBeep: 1=on, 0=off  (dataLen=2 per foxthefox correction)
+    inner = _fv(9, 1 if enabled else 0)
+    return _wrap_cmd(inner, 2, _ts())
+
+
+def build_ups_mode(enabled: bool) -> bytes:
+    """UPS mode ON/OFF — operate_code 3, inner field 8."""
+    inner = _fv(8, 1 if enabled else 0)
+    return _wrap_cmd(inner, 3, _ts())
+
+
+def build_charge_target(soc: int) -> bytes:
+    """Charge target % (15–100) — operate_code 3, inner field 102."""
+    soc = max(15, min(100, int(soc)))
+    inner = _fv(102, soc)
+    return _wrap_cmd(inner, 3, _ts())
+
+
+
+
+# ---------------------------------------------------------------------------
+# DEBUG helpers — decode received protobuf for analysis
+# ---------------------------------------------------------------------------
+
+def _read_varint(data: bytes, pos: int) -> tuple[int, int]:
+    """Lees varint op positie pos. Geeft (waarde, nieuwe_pos) terug."""
+    result = 0
+    shift = 0
+    while pos < len(data):
+        b = data[pos]
+        pos += 1
+        result |= (b & 0x7F) << shift
+        shift += 7
+        if not (b & 0x80):
+            break
+    return result, pos
+
+
+def dump_fields(data: bytes, depth: int = 0, max_depth: int = 3) -> str:
+    """
+    Decode protobuf wire-format to readable field dump (for DEBUG logging).
+
+    Example output:
+        f1(LEN  12): 0a 08 ...  [nested]
+          f1(LEN   8): 0a 04 ...
+        f2(VAR   32)
+        f10(VAR   3)
+    """
+    indent = "  " * depth
+    lines: list[str] = []
+    pos = 0
+    try:
+        while pos < len(data):
+            tag, pos = _read_varint(data, pos)
+            field_num = tag >> 3
+            wire_type = tag & 0x07
+            if wire_type == 0:        # varint
+                val, pos = _read_varint(data, pos)
+                lines.append(f"{indent}f{field_num}(VAR {val:5d})")
+            elif wire_type == 2:      # length-delimited
+                length, pos = _read_varint(data, pos)
+                chunk = data[pos:pos + length]
+                pos += length
+                hex_str = chunk[:16].hex()
+                if depth < max_depth and length >= 2 and chunk[0] in (0x08, 0x0a, 0x10, 0x12, 0x18, 0x1a):
+                    nested = dump_fields(chunk, depth + 1, max_depth)
+                    lines.append(f"{indent}f{field_num}(LEN {length:4d}) [nested]")
+                    lines.append(nested)
+                else:
+                    lines.append(f"{indent}f{field_num}(LEN {length:4d}): {hex_str}")
+            else:
+                lines.append(f"{indent}  <wire_type {wire_type} onbekend, stop>")
+                break
+    except Exception as exc:
+        lines.append(f"{indent}  <parse fout: {exc}>")
+    return "\n".join(lines)
+
