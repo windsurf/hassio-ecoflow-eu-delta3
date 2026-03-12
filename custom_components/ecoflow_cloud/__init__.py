@@ -5,6 +5,7 @@ import asyncio
 import json
 import logging
 import ssl
+import threading
 import time
 from typing import Any
 
@@ -22,9 +23,28 @@ from .const import (
 )
 from .api_client import EcoFlowAPI, EcoFlowPrivateAPI, EcoFlowAPIError
 from .coordinator import EcoflowCoordinator
+from .proto_codec import dump_fields
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER, Platform.SELECT]
+
+# v0.2.19: Delta 3 expects JSON GET (latestQuotas) on /get topic — NOT protobuf.
+# APP sends after connect: latestQuotas + getBmsInfo + getAllTaskCfg + setRtcTime.
+# Device accepts set-commands after receiving get_reply (latestQuotas).
+# Repeat every 20s to keep the session alive.
+_GET_INTERVAL = 20   # seconden — APP cadans
+
+# id-formaat: kleine integer (5-9 cijfers), NIET epoch seconds.
+# APP uses incrementing counters per session, e.g. 12251-1001, 12352-1002.
+# Use a random prefix + incrementing seq to avoid collision with the APP session.
+import random as _random
+_ID_PREFIX = _random.randint(10000, 99999)
+_id_seq = 0
+
+def _next_id() -> int:
+    global _id_seq
+    _id_seq += 1
+    return _ID_PREFIX * 1000 + _id_seq
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -86,17 +106,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     is_private = mqtt_info.get("_private_api", False)
     user_id    = mqtt_info.get("_user_id", "")
     if is_private:
-        topic_sub       = f"/app/device/property/{sn}"
-        topic_get       = f"/app/{user_id}/{sn}/thing/property/get"
-        topic_set       = f"/app/{user_id}/{sn}/thing/property/set"
-        topic_set_reply = f"/app/{user_id}/{sn}/thing/property/set_reply"
-        topic_get_reply = f"/app/{user_id}/{sn}/thing/property/get_reply"
+        topic_sub        = f"/app/device/property/{sn}"
+        topic_get        = f"/app/{user_id}/{sn}/thing/property/get"
+        topic_set        = f"/app/{user_id}/{sn}/thing/property/set"
+        topic_set_reply  = f"/app/{user_id}/{sn}/thing/property/set_reply"
+        topic_get_reply  = f"/app/{user_id}/{sn}/thing/property/get_reply"
+        # v0.2.18: wildcard trace — temporary, for APP session analysis
+        # Logs everything on /app/{uid}/#: APP client_id, commands, sequence
+        topic_wildcard   = f"/app/{user_id}/#"
     else:
-        topic_sub       = f"/open/{mqtt_info.get('certificateAccount', '')}/{sn}/quota"
-        topic_get       = f"/open/{mqtt_info.get('certificateAccount', '')}/{sn}/quota/get"
-        topic_set       = f"/open/{mqtt_info.get('certificateAccount', '')}/{sn}/set"
-        topic_set_reply = None
-        topic_get_reply = None
+        topic_sub        = f"/open/{mqtt_info.get('certificateAccount', '')}/{sn}/quota"
+        topic_get        = f"/open/{mqtt_info.get('certificateAccount', '')}/{sn}/quota/get"
+        topic_set        = f"/open/{mqtt_info.get('certificateAccount', '')}/{sn}/set"
+        topic_set_reply  = None
+        topic_get_reply  = None
+        topic_wildcard   = None
 
     _LOGGER.info(
         "EcoFlow: MQTT host=%s port=%d topic_sub=%s",
@@ -113,23 +137,73 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Track mid→topic per client so on_subscribe logs the correct topic.
     _subscribe_mid: dict[int, str] = {}
 
-    def _request_full_state(c: mqtt.Client) -> None:
-        """Send a get-all-properties request to the device."""
+    def _send_json_get(c: mqtt.Client, label: str = "keepalive") -> None:
+        """Send JSON latestQuotas GET — session initiation and keepalive.
+
+        v0.2.19: Delta 3 ignores protobuf GET entirely. The device responds
+        to a JSON latestQuotas GET with a get_reply (7979 bytes), after which
+        it accepts set-commands (setRtcTime ack=1 confirmed).
+        Proven via log analysis 2026-03-12: get_reply only on JSON GET.
+        """
         payload = json.dumps({
-            "id":      int(time.time() * 1000),
-            "version": "1.1",
-            "sn":      sn,
-            "params":  {},
+            "id":          _next_id(),
+            "version":     "1.0",
+            "operateType": "latestQuotas",
+            "moduleType":  0,
         })
-        result = c.publish(topic_get, payload, qos=0)
+        result = c.publish(topic_get, payload, qos=1)
         _LOGGER.debug(
-            "EcoFlow: MQTT get-all published → %s (mid=%s rc=%s)",
-            topic_get, result.mid, result.rc
+            "EcoFlow: JSON GET (%s) published → %s mid=%s rc=%s",
+            label, topic_get, result.mid, result.rc,
         )
+
+    def _send_init_sequence(c: mqtt.Client) -> None:
+        """Send the full APP init sequence after connect.
+
+        Proven order from log analysis (get_reply + set_reply patterns):
+          1. latestQuotas GET -> triggers get_reply with full device state
+          2. getBmsInfo     -> set_reply with BMS info
+          3. getAllTaskCfg  -> set_reply with task schedule
+          4. setRtcTime     -> set_reply ack=1 (confirms session active)
+        Device accepts set-commands after step 4.
+        """
+        ts = int(time.time())
+
+        # 1. latestQuotas — triggert get_reply
+        _send_json_get(c, label="init")
+
+        # 2. getBmsInfo
+        bms_info = json.dumps({
+            "id": _next_id(), "version": "1.0",
+            "operateType": "getBmsInfo", "moduleType": 2, "params": {},
+        })
+        c.publish(topic_set, bms_info, qos=1)
+        _LOGGER.debug("EcoFlow: init getBmsInfo sent")
+
+        # 3. getAllTaskCfg
+        task_cfg = json.dumps({
+            "id": _next_id(), "version": "1.0",
+            "operateType": "getAllTaskCfg", "moduleType": 1, "params": {},
+        })
+        c.publish(topic_set, task_cfg, qos=1)
+        _LOGGER.debug("EcoFlow: init getAllTaskCfg sent")
+
+        # 4. setRtcTime — confirms session, ack=1 = device ready for commands
+        rtc = json.dumps({
+            "id": _next_id(), "version": "1.0",
+            "operateType": "setRtcTime", "moduleType": 2,
+            "params": {"rtc": ts},
+        })
+        c.publish(topic_set, rtc, qos=1)
+        _LOGGER.info("EcoFlow: init sequence sent (latestQuotas + getBmsInfo + getAllTaskCfg + setRtcTime)")
 
     def on_connect(c, userdata, flags, rc):
         if rc == 0:
-            _LOGGER.info("EcoFlow: MQTT connected OK for %s", sn)
+            _LOGGER.info("EcoFlow: MQTT connected OK sn=%s", sn)
+            _LOGGER.debug(
+                "EcoFlow: on_connect flags=%s subscribing to %d topics",
+                flags, 2 + (1 if topic_set_reply else 0) + (1 if topic_get_reply else 0) + (1 if topic_wildcard else 0),
+            )
             r = c.subscribe(topic_sub, qos=1)
             _subscribe_mid[r[1]] = topic_sub
             if topic_set_reply:
@@ -138,15 +212,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             if topic_get_reply:
                 r = c.subscribe(topic_get_reply, qos=1)
                 _subscribe_mid[r[1]] = topic_get_reply
-            # Delay 5s: device sends only timing config immediately after connect.
-            # Full state dump (58+ keys) returned only after device init cycle completes.
-            # Confirmed by log analysis: get-all at t=0 returns only pd.pdInfoFull;
-            # get-all at t=5s returns full module dumps (PD:58, MPPT:36, INV:28 keys).
-            _LOGGER.debug("EcoFlow: waiting 5s for device init before get-all request")
-            time.sleep(5)
-            _request_full_state(c)
+            if topic_wildcard:
+                r = c.subscribe(topic_wildcard, qos=0)
+                _subscribe_mid[r[1]] = topic_wildcard
+                _LOGGER.info("EcoFlow: wildcard trace ACTIVE on %s", topic_wildcard)
+            # v0.2.19: schedule init sequence via threading.Timer — does NOT block MQTT event loop.
+            # time.sleep() in on_connect blocks the paho network loop (all MQTT I/O stops).
+            # threading.Timer runs _send_init_sequence in a separate thread after 5s
+            # while the MQTT loop continues normally.
+            _LOGGER.debug("EcoFlow: init sequence scheduled in 5s (threading.Timer)")
+            threading.Timer(5.0, _send_init_sequence, args=(c,)).start()
         else:
-            _LOGGER.error("EcoFlow: MQTT connect FAILED rc=%d for %s", rc, sn)
+            _LOGGER.error("EcoFlow: MQTT connect FAILED rc=%d sn=%s", rc, sn)
 
     def on_subscribe(c, userdata, mid, granted_qos):
         topic = _subscribe_mid.pop(mid, "unknown")
@@ -165,27 +242,56 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     def on_message(c, userdata, msg):
         raw_bytes = msg.payload
         _LOGGER.debug(
-            "EcoFlow: MQTT message topic=%s len=%d",
-            msg.topic, len(raw_bytes)
+            "EcoFlow: MQTT rx topic=%s len=%d",
+            msg.topic, len(raw_bytes),
         )
+
+        # ── Protobuf detection ────────────────────────────────────────────
+        # Delta 3 sends binary protobuf replies on topic_sub.
+        # Bytes 0x0a / 0x12 are standard protobuf wire tags (field 1/2, LEN).
+        # Do not discard — log as hex for reverse engineering.
+        if raw_bytes and raw_bytes[0] not in (0x7B, 0x5B):  # 0x7B='{', 0x5B='['
+            is_proto = len(raw_bytes) >= 2 and raw_bytes[0] in (0x0a, 0x12)
+            _LOGGER.debug(
+                "EcoFlow: MQTT binary payload topic=%s proto_likely=%s hex=%s",
+                msg.topic, is_proto, raw_bytes[:64].hex(),
+            )
+            if is_proto:
+                _LOGGER.info(
+                    "EcoFlow: proto REPLY topic=%s len=%d hex=%s",
+                    msg.topic, len(raw_bytes), raw_bytes.hex(),
+                )
+                _LOGGER.debug(
+                    "EcoFlow: proto REPLY fields:\n%s",
+                    dump_fields(raw_bytes),
+                )
+            else:
+                _LOGGER.warning(
+                    "EcoFlow: MQTT onbekend binair payload topic=%s hex=%s",
+                    msg.topic, raw_bytes[:64].hex(),
+                )
+            return
+
+        # ── JSON parse ────────────────────────────────────────────────────
         try:
             raw = raw_bytes.decode("utf-8")
             payload = json.loads(raw)
         except UnicodeDecodeError:
-            _LOGGER.warning(
-                "EcoFlow: MQTT payload is binary (protobuf?) — hex: %s",
-                raw_bytes[:64].hex()
+            _LOGGER.debug(
+                "EcoFlow: MQTT UTF-8 decode fout topic=%s hex=%s",
+                msg.topic, raw_bytes[:64].hex(),
             )
             return
         except json.JSONDecodeError as exc:
-            _LOGGER.warning("EcoFlow: MQTT JSON parse error: %s — raw: %s",
-                            exc, raw_bytes[:200])
+            _LOGGER.warning(
+                "EcoFlow: MQTT JSON parse fout topic=%s exc=%s raw=%s",
+                msg.topic, exc, raw_bytes[:200],
+            )
             return
 
-        # Log set_reply at INFO — flat structure: operateType + code at top level,
-        # data.ack is the device-level result (0=rejected, 1=accepted).
-        # Confirmed by log analysis v0.2.16:
-        #   {'operateType': 'dcOutCfg', 'moduleType': 1, 'code': '0', 'data': {'ack': 0}}
+        # ── set_reply analyse ─────────────────────────────────────────────
+        # Flat structure: operateType + code at root, data.ack = device result
+        # ack=1 -> device accepted command, ack=0 -> device rejected
         if topic_set_reply and msg.topic == topic_set_reply:
             try:
                 operate_type = payload.get("operateType", "unknown") if isinstance(payload, dict) else "unknown"
@@ -196,10 +302,43 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 operate_type, http_code, ack = "parse_error", "?", "?"
             _LOGGER.info(
                 "EcoFlow: set_reply operateType=%s code=%s ack=%s len=%d",
-                operate_type, http_code, ack, len(raw_bytes)
+                operate_type, http_code, ack, len(raw_bytes),
             )
+            _LOGGER.debug(
+                "EcoFlow: set_reply volledig payload=%s",
+                payload,
+            )
+
         elif topic_get_reply and msg.topic == topic_get_reply:
-            _LOGGER.info("EcoFlow: MQTT get_reply received (full state ack) len=%d", len(raw_bytes))
+            keys_count = len(payload) if isinstance(payload, dict) else 0
+            _LOGGER.info(
+                "EcoFlow: get_reply received len=%d keys=%d",
+                len(raw_bytes), keys_count,
+            )
+            _LOGGER.debug(
+                "EcoFlow: get_reply volledig payload=%s",
+                payload,
+            )
+
+        elif topic_wildcard and msg.topic not in (topic_sub, topic_set_reply, topic_get_reply):
+            # Wildcard trace — APP commands, init sequence, other clients
+            # JSON payloads as text, binary as hex
+            try:
+                readable = raw_bytes[:400].decode("utf-8", errors="replace")
+            except Exception:
+                readable = raw_bytes[:200].hex()
+            _LOGGER.info(
+                "EcoFlow: WILDCARD topic=%s len=%d payload=%s",
+                msg.topic, len(raw_bytes), readable,
+            )
+
+        else:
+            # Regular telemetry message from topic_sub
+            keys_count = len(payload) if isinstance(payload, dict) else 0
+            _LOGGER.debug(
+                "EcoFlow: telemetry topic=%s keys=%d",
+                msg.topic, keys_count,
+            )
 
         hass.loop.call_soon_threadsafe(coordinator.update_from_mqtt, payload)
 
@@ -307,6 +446,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.info("EcoFlow: new MQTT client active (client_id=%s)", new_cid)
 
     hass.loop.create_task(_recertify_loop())
+
+    # ── JSON GET keepalive ────────────────────────────────────────────────
+    # v0.2.19: Send JSON latestQuotas GET every 20s to keep session alive.
+    # Protobuf GET (v0.2.18) was completely ignored by the device.
+    # Proven via log analysis: get_reply (latestQuotas) triggers device acceptance.
+    if is_private:
+        async def _get_keepalive_loop():
+            await asyncio.sleep(25)   # wait after init sequence
+            while True:
+                current_client = hass.data[DOMAIN][entry.entry_id].get("mqtt_client")
+                if current_client:
+                    try:
+                        _send_json_get(current_client, label="keepalive")
+                    except Exception as exc:
+                        _LOGGER.debug("EcoFlow: GET keepalive error (non-fatal): %s", exc)
+                await asyncio.sleep(_GET_INTERVAL)
+
+        hass.loop.create_task(_get_keepalive_loop())
+        _LOGGER.info(
+            "EcoFlow: JSON GET keepalive started (interval=%ds, topic=%s)",
+            _GET_INTERVAL, topic_get,
+        )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
