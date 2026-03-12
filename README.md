@@ -215,10 +215,33 @@ logger:
 
 ## Changelog
 
+### v0.2.19 – Fix: threading.Timer init delay + Added: proto_codec.py protobuf encoder for Delta 3 SET commands
+
+- Fixed: `time.sleep(5)` in `on_connect` replaced by `threading.Timer(5.0, ...)` — paho MQTT thread no longer blocked during startup delay; confirmed working via post-reboot log
+- Added: `proto_codec.py` — pure-Python protobuf encoder for Delta 3 SET commands; no external dependencies; encodes wire format directly
+- Added: `build_ac_output(enabled)` — operate_code 3, inner field 2
+- Added: `build_xboost(enabled)` — operate_code 3, inner field 1
+- Added: `build_dc_output(enabled)` — operate_code 3, inner field 3
+- Added: `build_ac_charging(enabled)` — operate_code 3, inner field 5
+- Added: `build_beep(enabled)` — operate_code 2, inner field 9
+- Added: `build_ups_mode(enabled)` — operate_code 3, inner field 8
+- Added: `build_charge_target(soc)` — operate_code 3, inner field 102
+- Fixed: `switch.py` — `proto_builder` assigned per switch; JSON fallback retained for switches without known protobuf mapping
+- Fixed: `_next_id()` consistent message ID generation used in `select.py` and `number.py`
+- Fixed: `INTEGRATION_VERSION` corrected to `"0.2.19"` in `const.py`
+- Diagnosis: H-A through H-F refuted, **H-G confirmed** — Delta 3 silently ignores JSON SET commands; protobuf encoding required for all SET operations
+
+**Under investigation (carry-over to v0.2.20):**
+
+- Protobuf SET device response: AC output command dispatched via `proto_codec.py`, broker ACK confirmed (QoS 1), but `set_reply` not yet received — to be verified in next session
+- `build_xboost` inner field number (1) to be confirmed via live log toggle
+- Remaining switches without `proto_builder`: `solar_charge_priority`, `ac_auto_on`, `ac_always_on`, `bypass` — operate_code unknown, foxthefox schema to be consulted
+
 ### v0.2.17 – Fix: moduleType acOutCfg + id overflow + qos + usb_output disabled + client_id recertification
 
 - Fixed: `ac_output` and `x_boost` — `cmd_module` corrected from `MODULE_PD` (1) to `MODULE_MPPT` (5); confirmed via wildcard MQTT trace of APP commands
 - Fixed: `KEY_AC_ENABLED` state key corrected from `mppt.cfgAcEnabled` to `pd.acEnabled` (live state, not config register)
+- Fixed: `KEY_DC_OUT_STATE` corrected from `pd.carState` to `mppt.dc24vState` — confirmed via latestQuotas dump and incremental MPPT update after toggle
 - Fixed: command `id` field changed from epoch milliseconds (41-bit, overflow) to epoch seconds (31-bit, fits 32-bit uint)
 - Fixed: `usb_output` switch disabled by default (`entity_registry_enabled_default=False`); `dcOutCfg` returns `ack=0` regardless of state — risk of unintended DC shutdown
 - Fixed: MQTT `client_id` on recertification — `_build_client()` factory creates new `mqtt.Client` object; paho does not allow `client_id` mutation after `__init__()`
@@ -227,12 +250,6 @@ logger:
 - Improved: `acOutCfg` always sends live `xboost` value from coordinator to prevent inconsistent state
 - Improved: command publish changed to `qos=1`; broker guarantees delivery acknowledgement
 - Improved: `number.py` command `id` also corrected from epoch ms to epoch seconds
---
-### v0.2.17 – Fix: set_reply parser + KEY_DC_OUT_STATE + usb_output disabled
-
-- Fixed: set_reply handler las `params`-key uit device-reply, maar EcoFlow gebruikt `data`-key — `operateType` en `ack` werden nooit correct gelogd (`parse_error`). Handler leest nu `data.ack` correct: `ACCEPTED` (1) of `REJECTED` (0).
-- Fixed: `KEY_DC_OUT_STATE` corrected from `pd.carState` to `mppt.dc24vState` — confirmed via latestQuotas dump and incremental MPPT update after toggle (log 11-mar).
-- Changed: `usb_output` switch disabled by default (`entity_registry_enabled_default=False`) — `dcOutCfg` returns `ack=0` on all attempts; correct command unknown (hypotheses H1/H2/H3 open).
 
 ### v0.2.16 – Fix: version 1.0 + pvChangePrio + KEY_AC_ENABLED + set_reply diagnostics
 
