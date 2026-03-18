@@ -215,6 +215,14 @@ logger:
 
 ## Changelog
 
+### v0.2.20 – Fix: manifest.json key order + brand/icon.png + GitHub Actions checkout@v5 + enBeep dataLen=2
+
+- Fixed: `manifest.json` key order corrected to HACS/Hassfest required sequence: `domain → name → codeowners → config_flow → dependencies → documentation → iot_class → issue_tracker → requirements → version`
+- Fixed: `brand/icon.png` added at `custom_components/ecoflow_cloud/brand/icon.png` (second required location alongside `brands/icon.png` in repository root)
+- Fixed: `validate.yml` — daily cron trigger (`0 0 * * *`) removed to prevent unnecessary failure emails; `actions/checkout@v4` updated to `@v5`
+- Fixed: `release.yml` — `actions/checkout@v4` updated to `@v5` (v4 deprecated June 2026)
+- Fixed: `build_beep()` in `proto_codec.py` — `enBeep` field now encoded as length-delimited (wire=2) with `dataLen=2` per foxthefox ioBroker.ecoflow-mqtt correction; plain varint encoding was silently rejected by the device
+
 ### v0.2.19 – Fix: threading.Timer init delay + Added: proto_codec.py protobuf encoder for Delta 3 SET commands
 
 - Fixed: `time.sleep(5)` in `on_connect` replaced by `threading.Timer(5.0, ...)` — paho MQTT thread no longer blocked during startup delay; confirmed working via post-reboot log
