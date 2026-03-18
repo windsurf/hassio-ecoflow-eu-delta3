@@ -160,9 +160,17 @@ def build_ac_charging(enabled: bool) -> bytes:
 
 
 def build_beep(enabled: bool) -> bytes:
-    """Beep sound ON/OFF — operate_code 2, inner field 9."""
-    # field 9 = enBeep: 1=on, 0=off  (dataLen=2 per foxthefox correction)
-    inner = _fv(9, 1 if enabled else 0)
+    """Beep sound ON/OFF — operate_code 2, inner field 9.
+
+    foxthefox correction (ioBroker.ecoflow-mqtt): enBeep requires dataLen=2,
+    meaning the field must be length-delimited (wire=2) with a 2-byte payload:
+    one byte for the value (0/1) and one padding byte (0x00).
+    Encoding as a plain varint (wire=0) is silently rejected by the device.
+    """
+    # field 9, wire=2 (length-delimited), data = [value, 0x00] (2 bytes)
+    val = 1 if enabled else 0
+    data = bytes([val, 0x00])
+    inner = _fb(9, data)
     return _wrap_cmd(inner, 2, _ts())
 
 
