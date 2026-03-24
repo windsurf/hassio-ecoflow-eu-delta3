@@ -5,8 +5,8 @@
         "title": "EcoFlow Cloud – Configurazione",
         "description": "Aggiungi il tuo dispositivo EcoFlow. Il **rilevamento automatico** (consigliato) sceglie l'API corretta in base al numero di serie.",
         "data": {
-          "device_sn":  "Numero di serie del dispositivo",
-          "auth_mode":  "Metodo di connessione"
+          "device_sn": "Numero di serie del dispositivo",
+          "auth_mode": "Metodo di connessione"
         },
         "data_description": {
           "device_sn": "Sull'etichetta del dispositivo o nell'app EcoFlow in Informazioni dispositivo",
@@ -25,13 +25,25 @@
         "title": "EcoFlow Cloud – Accesso tramite app",
         "description": "{hint}",
         "data": {
-          "email":    "Indirizzo e-mail account EcoFlow",
+          "email": "Indirizzo e-mail account EcoFlow",
           "password": "Password account EcoFlow"
         }
       },
       "test": {
         "title": "EcoFlow Cloud – Test connessione",
         "description": "{eu}\n{us}\n{glob}\n\n{hint}"
+      },
+      "developer_creds": {
+        "title": "EcoFlow Cloud - Developer API (Optional)",
+        "description": "{hint}",
+        "data": {
+          "dev_access_key": "Developer Access Key (optional)",
+          "dev_secret_key": "Developer Secret Key (optional)"
+        },
+        "data_description": {
+          "dev_access_key": "Enables switch and number control via REST API. Leave empty to skip.",
+          "dev_secret_key": "Required if Access Key is provided."
+        }
       }
     },
     "error": {
@@ -50,10 +62,12 @@
         "data": {
           "access_key": "Chiave di accesso",
           "secret_key": "Chiave segreta",
-          "email":      "Indirizzo e-mail account EcoFlow",
-          "password":   "Password account EcoFlow",
-          "device_sn":  "Numero di serie del dispositivo",
-          "api_host":   "Server API"
+          "email": "Indirizzo e-mail account EcoFlow",
+          "password": "Password account EcoFlow",
+          "device_sn": "Numero di serie del dispositivo",
+          "api_host": "Server API",
+          "dev_access_key": "Developer Access Key (optional)",
+          "dev_secret_key": "Developer Secret Key"
         }
       }
     },
