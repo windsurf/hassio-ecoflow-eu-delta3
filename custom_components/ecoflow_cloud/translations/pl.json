@@ -5,8 +5,8 @@
         "title": "EcoFlow Cloud – Konfiguracja",
         "description": "Dodaj urządzenie EcoFlow. **Automatyczne wykrywanie** (zalecane) wybiera właściwe API na podstawie numeru seryjnego.",
         "data": {
-          "device_sn":  "Numer seryjny urządzenia",
-          "auth_mode":  "Metoda połączenia"
+          "device_sn": "Numer seryjny urządzenia",
+          "auth_mode": "Metoda połączenia"
         },
         "data_description": {
           "device_sn": "Na naklejce urządzenia lub w aplikacji EcoFlow w sekcji Informacje o urządzeniu",
@@ -16,26 +16,63 @@
       "public_creds": {
         "title": "EcoFlow Cloud – API dewelopera",
         "description": "{hint}",
-        "data": { "access_key": "Klucz dostępu", "secret_key": "Klucz tajny" }
+        "data": {
+          "access_key": "Klucz dostępu",
+          "secret_key": "Klucz tajny"
+        }
       },
       "private_creds": {
         "title": "EcoFlow Cloud – Logowanie przez aplikację",
         "description": "{hint}",
-        "data": { "email": "Adres e-mail konta EcoFlow", "password": "Hasło konta EcoFlow" }
+        "data": {
+          "email": "Adres e-mail konta EcoFlow",
+          "password": "Hasło konta EcoFlow"
+        }
       },
-      "test": { "title": "EcoFlow Cloud – Test połączenia", "description": "{eu}\n{us}\n{glob}\n\n{hint}" }
+      "test": {
+        "title": "EcoFlow Cloud – Test połączenia",
+        "description": "{eu}\n{us}\n{glob}\n\n{hint}"
+      },
+      "developer_creds": {
+        "title": "EcoFlow Cloud - Developer API (Optional)",
+        "description": "{hint}",
+        "data": {
+          "dev_access_key": "Developer Access Key (optional)",
+          "dev_secret_key": "Developer Secret Key (optional)"
+        },
+        "data_description": {
+          "dev_access_key": "Enables switch and number control via REST API. Leave empty to skip.",
+          "dev_secret_key": "Required if Access Key is provided."
+        }
+      }
     },
-    "error": { "cannot_connect": "Nie można połączyć – sprawdź dane logowania.", "unknown": "Nieoczekiwany błąd. Sprawdź logi Home Assistant." },
-    "abort": { "already_configured": "To urządzenie jest już skonfigurowane." }
+    "error": {
+      "cannot_connect": "Nie można połączyć – sprawdź dane logowania.",
+      "unknown": "Nieoczekiwany błąd. Sprawdź logi Home Assistant."
+    },
+    "abort": {
+      "already_configured": "To urządzenie jest już skonfigurowane."
+    }
   },
   "options": {
     "step": {
       "init": {
         "title": "EcoFlow Cloud – Ustawienia ({mode})",
         "description": "Aktualny serwer API: {current_host}",
-        "data": { "access_key": "Klucz dostępu", "secret_key": "Klucz tajny", "email": "Adres e-mail konta EcoFlow", "password": "Hasło konta EcoFlow", "device_sn": "Numer seryjny urządzenia", "api_host": "Serwer API" }
+        "data": {
+          "access_key": "Klucz dostępu",
+          "secret_key": "Klucz tajny",
+          "email": "Adres e-mail konta EcoFlow",
+          "password": "Hasło konta EcoFlow",
+          "device_sn": "Numer seryjny urządzenia",
+          "api_host": "Serwer API",
+          "dev_access_key": "Developer Access Key (optional)",
+          "dev_secret_key": "Developer Secret Key"
+        }
       }
     },
-    "error": { "cannot_connect": "Nie można połączyć z tymi danymi." }
+    "error": {
+      "cannot_connect": "Nie można połączyć z tymi danymi."
+    }
   }
 }
