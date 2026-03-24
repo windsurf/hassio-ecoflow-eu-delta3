@@ -1,26 +1,32 @@
 """EcoFlow API clients.
 
-Two authentication modes:
+Three authentication / control modes:
 
-  1. PUBLIC API (Open API)
+  1. PUBLIC API (Open API) — read + write via Developer API
      - Credentials: Access Key + Secret Key from developer-eu.ecoflow.com
-     - MQTT host:   mqtt-e.ecoflow.com
-     - MQTT topic:  /open/{certificateAccount}/{sn}/quota
-     - Limitation:  Delta 3 (D361) returns 1006 on /quota/all
+     - Read:  GET /iot-open/sign/device/quota/all (fails with 1006 on Delta 3)
+     - Write: PUT /iot-open/sign/device/quota (confirmed working for Delta 3)
+     - MQTT:  /open/{certificateAccount}/{sn}/quota
 
-  2. PRIVATE API (App credentials)  ← works for ALL devices incl. Delta 3
-     - Credentials: EcoFlow app email + password (plaintext)
-     - Login:       POST https://api.ecoflow.com/auth/login
-     - MQTT creds:  GET  https://api.ecoflow.com/iot-auth/app/certification
-     - MQTT host:   mqtt.ecoflow.com
-     - MQTT topics:
-         subscribe: /app/device/property/{sn}
-         set:       /app/{userId}/{sn}/thing/property/set
-         get:       /app/{userId}/{sn}/thing/property/get
-     - ClientID:    ANDROID_{uuid}_{userId_hex}  (must be 32 chars, end with userId hex)
+  2. PRIVATE API (App credentials) — read via MQTT, no REST write
+     - Credentials: EcoFlow app email + password
+     - Read:  MQTT push /app/device/property/{sn} (works for ALL devices)
+     - Write: MQTT /set topic (Delta 3 ignores JSON, needs protobuf)
+     - ClientID: ANDROID_{uuid}_{userId_hex}
+
+  3. HYBRID MODE (recommended for Delta 3) — MQTT read + REST write
+     - MQTT telemetry via Private API (email + password)
+     - SET commands via Developer API (Access Key + Secret Key)
+     - Best of both worlds: real-time data + reliable control
+
+HMAC signing spec (confirmed 19 March 2026):
+  GET:  HMAC-SHA256("accessKey=...&nonce=...&timestamp=...", secretKey)
+  PUT:  HMAC-SHA256("flat_body_sorted&accessKey=...&nonce=...&timestamp=...", secretKey)
+        Nested params flattened with dot notation (params.enabled=0).
 """
 from __future__ import annotations
 
+import hashlib
 import hmac
 import logging
 import random
@@ -33,9 +39,10 @@ from .const import API_HOST_DEFAULT
 
 _LOGGER = logging.getLogger(__name__)
 
-# ── Public API paths ──────────────────────────────────────────────────────
+# ── Developer API paths ──────────────────────────────────────────────────
 PATH_MQTT        = "/iot-open/sign/certification"
 PATH_QUOTA       = "/iot-open/sign/device/quota/all"
+PATH_QUOTA_SET   = "/iot-open/sign/device/quota"
 PATH_DEVICE_LIST = "/iot-open/sign/device/list"
 
 # ── Private API URLs ──────────────────────────────────────────────────────
@@ -49,14 +56,51 @@ def _nonce() -> str:
 def _ts() -> str:
     return str(int(time.time() * 1000))
 
-def _make_headers(sign_params: dict, ak: str, sk: str) -> dict[str, str]:
+def _flatten(obj: dict, prefix: str = "") -> dict[str, str]:
+    """Recursively flatten nested dict with dot notation for signing.
+
+    Example: {"sn": "X", "params": {"enabled": 0}}
+          -> {"sn": "X", "params.enabled": "0"}
+    """
+    result: dict[str, str] = {}
+    for k, v in obj.items():
+        full_key = f"{prefix}.{k}" if prefix else k
+        if isinstance(v, dict):
+            result.update(_flatten(v, full_key))
+        else:
+            result[full_key] = str(v)
+    return result
+
+def _sign_get(ak: str, sk: str) -> dict[str, str]:
+    """Build signed headers for GET requests.
+
+    GET signing: HMAC-SHA256("accessKey=...&nonce=...&timestamp=...", secretKey)
+    Request params (sn, etc.) are NOT part of the signature.
+    """
+    nc  = _nonce()
+    ts  = _ts()
+    msg = f"accessKey={ak}&nonce={nc}&timestamp={ts}"
+    sig = hmac.new(sk.encode(), msg.encode(), hashlib.sha256).hexdigest()
+    return {"accessKey": ak, "timestamp": ts, "nonce": nc, "sign": sig,
+            "Content-Type": "application/json"}
+
+def _sign_put(body: dict, ak: str, sk: str) -> dict[str, str]:
+    """Build signed headers for PUT requests.
+
+    PUT signing:
+      1. Flatten body params with dot notation (params.enabled=0)
+      2. Sort flattened params by key (ASCII order)
+      3. Append accessKey=...&nonce=...&timestamp=...
+      4. HMAC-SHA256 the entire string
+    """
     nc   = _nonce()
     ts   = _ts()
-    ps   = "&".join(f"{k}={v}" for k, v in sorted(sign_params.items()))
+    flat = _flatten(body)
+    ps   = "&".join(f"{k}={v}" for k, v in sorted(flat.items()))
     auth = f"accessKey={ak}&nonce={nc}&timestamp={ts}"
     msg  = f"{ps}&{auth}" if ps else auth
     sig  = hmac.new(sk.encode(), msg.encode(), hashlib.sha256).hexdigest()
-    _LOGGER.debug("sign_msg: %s", msg)
+    _LOGGER.debug("sign_put input: %s", msg[:120])
     return {"accessKey": ak, "timestamp": ts, "nonce": nc, "sign": sig,
             "Content-Type": "application/json"}
 
@@ -65,10 +109,17 @@ class EcoFlowAPIError(Exception):
     pass
 
 
-# ── Public API client ─────────────────────────────────────────────────────
+# ── Developer API client ──────────────────────────────────────────────────
 
 class EcoFlowAPI:
-    """REST client for the EcoFlow Open (developer) API."""
+    """REST client for the EcoFlow Developer (Open) API.
+
+    Used for:
+      - Authentication + MQTT credential retrieval (GET, auth-only signing)
+      - Device listing (GET, auth-only signing)
+      - Quota reading (GET, auth-only signing) — returns 1006 for Delta 3
+      - SET commands (PUT, body-param signing) — confirmed working for Delta 3
+    """
 
     def __init__(self, access_key: str, secret_key: str,
                  device_sn: str, api_host: str = API_HOST_DEFAULT) -> None:
@@ -79,28 +130,44 @@ class EcoFlowAPI:
         self._s    = requests.Session()
         self._s.headers.update({"User-Agent": "HomeAssistant/EcoFlowCloud"})
 
-    def _get(self, path: str, sign_params: dict,
-             url_params: dict | None = None) -> dict:
+    def _get(self, path: str, url_params: dict | None = None) -> dict:
+        """GET request with auth-only signing (no request params in signature)."""
         url  = f"{self._host}{path}"
-        hdrs = _make_headers(sign_params, self._ak, self._sk)
-        qp   = url_params if url_params is not None else sign_params
+        hdrs = _sign_get(self._ak, self._sk)
         try:
-            r    = self._s.get(url, headers=hdrs, params=qp, timeout=15)
+            r    = self._s.get(url, headers=hdrs, params=url_params, timeout=15)
             r.raise_for_status()
             body = r.json()
         except requests.RequestException as e:
-            raise EcoFlowAPIError(f"Request failed: {e}") from e
-        _LOGGER.debug("Response %s: %s", path, str(body)[:300])
+            raise EcoFlowAPIError(f"GET {path} failed: {e}") from e
+        _LOGGER.debug("GET %s: %s", path, str(body)[:300])
         if str(body.get("code")) != "0":
             raise EcoFlowAPIError(
                 f"API error {body.get('code')}: {body.get('message', 'unknown')}")
         return body.get("data") or {}
 
+    def _put(self, path: str, body: dict) -> dict:
+        """PUT request with body-param signing (flatten + sort + auth)."""
+        url  = f"{self._host}{path}"
+        hdrs = _sign_put(body, self._ak, self._sk)
+        try:
+            r    = self._s.put(url, headers=hdrs, json=body, timeout=15)
+            r.raise_for_status()
+            resp = r.json()
+        except requests.RequestException as e:
+            raise EcoFlowAPIError(f"PUT {path} failed: {e}") from e
+        _LOGGER.debug("PUT %s: %s", path, str(resp)[:300])
+        code = str(resp.get("code", ""))
+        if code != "0":
+            raise EcoFlowAPIError(
+                f"SET error {code}: {resp.get('message', 'unknown')}")
+        return resp.get("data") or {}
+
     def get_mqtt_credentials(self) -> dict[str, Any]:
-        return self._get(PATH_MQTT, sign_params={})
+        return self._get(PATH_MQTT)
 
     def get_device_list(self) -> list[dict]:
-        data = self._get(PATH_DEVICE_LIST, sign_params={})
+        data = self._get(PATH_DEVICE_LIST)
         if isinstance(data, list):
             return data
         return data.get("list", [])
@@ -108,8 +175,7 @@ class EcoFlowAPI:
     def get_all_quota(self) -> dict[str, Any]:
         """Returns empty dict on 1006/8521 — not fatal, MQTT is primary."""
         try:
-            raw = self._get(PATH_QUOTA, sign_params={},
-                            url_params={"sn": self._sn})
+            raw = self._get(PATH_QUOTA, url_params={"sn": self._sn})
             return self._normalise(raw)
         except EcoFlowAPIError as e:
             if "1006" in str(e) or "8521" in str(e):
@@ -118,6 +184,37 @@ class EcoFlowAPI:
                 self.rest_quota_unavailable = True
                 return {}
             raise
+
+    def set_quota(self, module_type: int, operate_type: str,
+                  params: dict) -> dict:
+        """Send a SET command via REST API PUT.
+
+        This is the primary control path for Delta 3 (D361) devices.
+        The Developer API accepts JSON commands that the MQTT /set topic ignores.
+
+        Args:
+            module_type: EcoFlow module (1=PD, 2=BMS, 3=INV, 5=MPPT)
+            operate_type: Command name (e.g. "acOutCfg", "quietMode")
+            params: Command parameters (e.g. {"enabled": 1})
+
+        Returns:
+            Response data dict (usually empty on success)
+
+        Raises:
+            EcoFlowAPIError: On signing failure (8521), device offline (1006),
+                             or other API errors.
+        """
+        body = {
+            "sn":          self._sn,
+            "moduleType":  module_type,
+            "operateType": operate_type,
+            "params":      params,
+        }
+        _LOGGER.info(
+            "EcoFlow REST SET: sn=%s module=%d operate=%s params=%s",
+            self._sn, module_type, operate_type, params,
+        )
+        return self._put(PATH_QUOTA_SET, body)
 
     @property
     def rest_quota_unavailable(self) -> bool:
@@ -314,3 +411,37 @@ class EcoFlowPrivateAPI:
     def rest_quota_unavailable(self) -> bool:
         """Private API never has REST quota — always True."""
         return True
+
+    # ── Hybrid mode: optional Developer API for SET commands ─────────────
+    _developer_api: EcoFlowAPI | None = None
+
+    def attach_developer_api(self, dev_api: EcoFlowAPI) -> None:
+        """Attach a Developer API client for REST SET commands.
+
+        When attached, set_quota() delegates to the Developer API.
+        This enables hybrid mode: MQTT read (Private) + REST write (Developer).
+        """
+        self._developer_api = dev_api
+        _LOGGER.info(
+            "EcoFlow: Developer API attached for REST SET (sn=%s host=%s)",
+            self._sn, dev_api._host,
+        )
+
+    @property
+    def has_developer_api(self) -> bool:
+        """True if a Developer API client is attached for REST SET."""
+        return self._developer_api is not None
+
+    def set_quota(self, module_type: int, operate_type: str,
+                  params: dict) -> dict:
+        """Send SET command via Developer API (if attached).
+
+        In hybrid mode, delegates to EcoFlowAPI.set_quota().
+        Without Developer API, raises EcoFlowAPIError.
+        """
+        if self._developer_api is None:
+            raise EcoFlowAPIError(
+                "No Developer API configured — cannot send REST SET. "
+                "Add Developer API credentials in integration options."
+            )
+        return self._developer_api.set_quota(module_type, operate_type, params)
