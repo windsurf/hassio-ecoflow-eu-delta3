@@ -39,12 +39,11 @@ SERVERS = {
 }
 
 
-def _headers(params: dict, ak: str, sk: str) -> dict:
+def _headers(ak: str, sk: str) -> dict:
+    """Build signed headers. GET signing uses only auth fields."""
     nc  = str(random.randint(100_000, 999_999))
     ts  = str(int(time.time() * 1000))
-    ps  = "&".join(f"{k}={v}" for k, v in sorted(params.items()))
-    msg = f"{ps}&accessKey={ak}&nonce={nc}&timestamp={ts}" if ps \
-          else f"accessKey={ak}&nonce={nc}&timestamp={ts}"
+    msg = f"accessKey={ak}&nonce={nc}&timestamp={ts}"
     sig = hmac.new(sk.encode(), msg.encode(), hashlib.sha256).hexdigest()
     return {"accessKey": ak, "nonce": nc, "timestamp": ts, "sign": sig}
 
@@ -56,7 +55,7 @@ def test_server(label: str, host: str) -> bool:
 
     # Step 1: authentication
     try:
-        h    = _headers({}, ACCESS_KEY, SECRET_KEY)
+        h    = _headers(ACCESS_KEY, SECRET_KEY)
         resp = requests.get(f"{host}/iot-open/sign/certification",
                             headers=h, timeout=10)
         body = resp.json()
@@ -72,7 +71,7 @@ def test_server(label: str, host: str) -> bool:
 
     # Step 2: device list
     try:
-        h    = _headers({}, ACCESS_KEY, SECRET_KEY)
+        h    = _headers(ACCESS_KEY, SECRET_KEY)
         resp = requests.get(f"{host}/iot-open/sign/device/list",
                             headers=h, timeout=10)
         body = resp.json()
