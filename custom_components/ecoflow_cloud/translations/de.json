@@ -5,8 +5,8 @@
         "title": "EcoFlow Cloud – Einrichtung",
         "description": "Fügen Sie Ihr EcoFlow-Gerät hinzu. **Automatische Erkennung** (empfohlen) wählt die richtige API anhand der Seriennummer.",
         "data": {
-          "device_sn":  "Seriennummer des Geräts",
-          "auth_mode":  "Verbindungsmethode"
+          "device_sn": "Seriennummer des Geräts",
+          "auth_mode": "Verbindungsmethode"
         },
         "data_description": {
           "device_sn": "Auf dem Geräteaufkleber oder in der EcoFlow-App unter Geräteinformationen",
@@ -25,13 +25,25 @@
         "title": "EcoFlow Cloud – App-Login",
         "description": "{hint}",
         "data": {
-          "email":    "EcoFlow-Konto E-Mail-Adresse",
+          "email": "EcoFlow-Konto E-Mail-Adresse",
           "password": "EcoFlow-Konto Passwort"
         }
       },
       "test": {
         "title": "EcoFlow Cloud – Verbindungstest",
         "description": "{eu}\n{us}\n{glob}\n\n{hint}"
+      },
+      "developer_creds": {
+        "title": "EcoFlow Cloud - Developer API (Optional)",
+        "description": "{hint}",
+        "data": {
+          "dev_access_key": "Developer Access Key (optional)",
+          "dev_secret_key": "Developer Secret Key (optional)"
+        },
+        "data_description": {
+          "dev_access_key": "Enables switch and number control via REST API. Leave empty to skip.",
+          "dev_secret_key": "Required if Access Key is provided."
+        }
       }
     },
     "error": {
@@ -50,10 +62,12 @@
         "data": {
           "access_key": "Access Key",
           "secret_key": "Secret Key",
-          "email":      "EcoFlow-Konto E-Mail-Adresse",
-          "password":   "EcoFlow-Konto Passwort",
-          "device_sn":  "Seriennummer des Geräts",
-          "api_host":   "API-Server"
+          "email": "EcoFlow-Konto E-Mail-Adresse",
+          "password": "EcoFlow-Konto Passwort",
+          "device_sn": "Seriennummer des Geräts",
+          "api_host": "API-Server",
+          "dev_access_key": "Developer Access Key (optional)",
+          "dev_secret_key": "Developer Secret Key"
         }
       }
     },
