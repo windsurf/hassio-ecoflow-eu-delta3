@@ -18,8 +18,9 @@ from homeassistant.const import Platform
 from .const import (
     DOMAIN, CONF_ACCESS_KEY, CONF_SECRET_KEY, CONF_DEVICE_SN, CONF_API_HOST,
     CONF_AUTH_MODE, CONF_EMAIL, CONF_PASSWORD,
+    CONF_DEV_ACCESS_KEY, CONF_DEV_SECRET_KEY, CONF_DEV_API_HOST,
     AUTH_MODE_PRIVATE,
-    API_HOST_DEFAULT, MQTT_KEEPALIVE, MQTT_RECONNECT_INTERVAL,
+    API_HOST_DEFAULT, API_HOST_EU, MQTT_KEEPALIVE, MQTT_RECONNECT_INTERVAL,
 )
 from .api_client import EcoFlowAPI, EcoFlowPrivateAPI, EcoFlowAPIError
 from .coordinator import EcoflowCoordinator
@@ -32,9 +33,9 @@ PLATFORMS = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER, Platform.SELECT]
 # APP sends after connect: latestQuotas + getBmsInfo + getAllTaskCfg + setRtcTime.
 # Device accepts set-commands after receiving get_reply (latestQuotas).
 # Repeat every 20s to keep the session alive.
-_GET_INTERVAL = 20   # seconden — APP cadans
+_GET_INTERVAL = 20   # seconds — APP cadence
 
-# id-formaat: kleine integer (5-9 cijfers), NIET epoch seconds.
+# id format: small integer (5-9 digits), NOT epoch seconds.
 # APP uses incrementing counters per session, e.g. 12251-1001, 12352-1002.
 # Use a random prefix + incrementing seq to avoid collision with the APP session.
 import random as _random
@@ -63,6 +64,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         api      = EcoFlowPrivateAPI(email, password, sn)
     else:
         api = EcoFlowAPI(access_key, secret_key, sn, api_host)
+
+    # ── Developer API for REST SET (hybrid mode) ─────────────────────────
+    # If Developer API credentials are configured, create a separate client
+    # for SET commands via REST PUT. This enables reliable device control
+    # for Delta 3 devices where MQTT SET is ignored (H-G confirmed).
+    dev_ak = data.get(CONF_DEV_ACCESS_KEY, "")
+    dev_sk = data.get(CONF_DEV_SECRET_KEY, "")
+    dev_api: EcoFlowAPI | None = None
+
+    if dev_ak and dev_sk:
+        dev_host = data.get(CONF_DEV_API_HOST, API_HOST_EU)
+        dev_api  = EcoFlowAPI(dev_ak, dev_sk, sn, dev_host)
+        _LOGGER.info("EcoFlow: Developer API configured for REST SET (host=%s)", dev_host)
+        # In private mode, attach to the PrivateAPI so set_quota() delegates
+        if isinstance(api, EcoFlowPrivateAPI):
+            api.attach_developer_api(dev_api)
+    elif auth_mode == AUTH_MODE_PRIVATE:
+        _LOGGER.warning(
+            "EcoFlow: No Developer API credentials — switches/numbers will use "
+            "MQTT protobuf (experimental, may not work for Delta 3)"
+        )
+
     coordinator = EcoflowCoordinator(hass, api)
 
     # ── MQTT credentials ──────────────────────────────────────────────────
@@ -97,6 +120,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
         "api": api, "coordinator": coordinator, "sn": sn,
+        "rest_api": dev_api,  # None if no Developer API configured
     }
 
     # ── MQTT topics ───────────────────────────────────────────────────────
@@ -267,7 +291,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 )
             else:
                 _LOGGER.warning(
-                    "EcoFlow: MQTT onbekend binair payload topic=%s hex=%s",
+                    "EcoFlow: MQTT unknown binary payload topic=%s hex=%s",
                     msg.topic, raw_bytes[:64].hex(),
                 )
             return
@@ -278,13 +302,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             payload = json.loads(raw)
         except UnicodeDecodeError:
             _LOGGER.debug(
-                "EcoFlow: MQTT UTF-8 decode fout topic=%s hex=%s",
+                "EcoFlow: MQTT UTF-8 decode error topic=%s hex=%s",
                 msg.topic, raw_bytes[:64].hex(),
             )
             return
         except json.JSONDecodeError as exc:
             _LOGGER.warning(
-                "EcoFlow: MQTT JSON parse fout topic=%s exc=%s raw=%s",
+                "EcoFlow: MQTT JSON parse error topic=%s exc=%s raw=%s",
                 msg.topic, exc, raw_bytes[:200],
             )
             return
@@ -305,7 +329,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 operate_type, http_code, ack, len(raw_bytes),
             )
             _LOGGER.debug(
-                "EcoFlow: set_reply volledig payload=%s",
+                "EcoFlow: set_reply full payload=%s",
                 payload,
             )
 
@@ -316,7 +340,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 len(raw_bytes), keys_count,
             )
             _LOGGER.debug(
-                "EcoFlow: get_reply volledig payload=%s",
+                "EcoFlow: get_reply full payload=%s",
                 payload,
             )
 
