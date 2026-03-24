@@ -123,23 +123,42 @@ class EcoFlowSelectEntity(CoordinatorEntity[EcoflowCoordinator], SelectEntity):
         return bool(self.coordinator.data)
 
     def _publish(self, raw_value: int) -> None:
+        desc   = self.entity_description
+        params = {desc.cmd_param_key: raw_value}
+
+        # ── Priority 1: REST API SET (Developer API) ─────────────────────
+        rest_api = self._entry_data.get("rest_api")
+        if rest_api is not None and desc.cmd_operate:
+            try:
+                rest_api.set_quota(desc.cmd_module, desc.cmd_operate, params)
+                _LOGGER.info(
+                    "EcoFlow: REST SET select %s value=%s module=%d operate=%s",
+                    desc.key, raw_value, desc.cmd_module, desc.cmd_operate,
+                )
+                return
+            except Exception as exc:
+                _LOGGER.warning(
+                    "EcoFlow: REST SET select %s failed (%s) — falling back to MQTT",
+                    desc.key, exc,
+                )
+
+        # ── Priority 2: JSON MQTT SET (fallback) ─────────────────────────
         client = self._entry_data.get("mqtt_client")
         topic  = self._entry_data.get("mqtt_topic_set")
         if not client or not topic:
-            _LOGGER.error("MQTT client unavailable — cannot send select command")
+            _LOGGER.error("No MQTT client and no REST API — cannot send select command")
             return
-        desc = self.entity_description
         cmd = {
             "id":          _next_id(),
             "version":     "1.1",
             "sn":          self._sn,
             "moduleType":  desc.cmd_module,
             "operateType": desc.cmd_operate,
-            "params":      {desc.cmd_param_key: raw_value},
+            "params":      params,
         }
-        _LOGGER.info("EcoFlow: Select command → %s : %s", topic, cmd)
+        _LOGGER.info("EcoFlow: JSON SET select %s value=%s (no REST — may be ignored)", desc.key, raw_value)
         result = client.publish(topic, json.dumps(cmd), qos=0)
-        _LOGGER.debug("EcoFlow: Select publish result mid=%s rc=%s", result.mid, result.rc)
+        _LOGGER.debug("EcoFlow: Select publish mid=%s rc=%s", result.mid, result.rc)
 
     async def async_select_option(self, option: str) -> None:
         raw = self.entity_description.options_map.get(option)
