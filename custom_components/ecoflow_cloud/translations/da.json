@@ -4,27 +4,75 @@
       "user": {
         "title": "EcoFlow Cloud – Opsætning",
         "description": "Tilføj din EcoFlow-enhed. **Automatisk registrering** (anbefales) vælger den rigtige API baseret på serienummeret.",
-        "data": { "device_sn": "Enhedens serienummer", "auth_mode": "Forbindelsesmetode" },
+        "data": {
+          "device_sn": "Enhedens serienummer",
+          "auth_mode": "Forbindelsesmetode"
+        },
         "data_description": {
           "device_sn": "På enhedens etiket eller i EcoFlow-appen under Enhedsoplysninger",
           "auth_mode": "Automatisk vælger App Login til Delta 3 og nyere enheder, Developer API til ældre"
         }
       },
-      "public_creds": { "title": "EcoFlow Cloud – Developer API", "description": "{hint}", "data": { "access_key": "Adgangsnøgle", "secret_key": "Hemmelig nøgle" } },
-      "private_creds": { "title": "EcoFlow Cloud – App Login", "description": "{hint}", "data": { "email": "EcoFlow-konto e-mail", "password": "EcoFlow-konto adgangskode" } },
-      "test": { "title": "EcoFlow Cloud – Forbindelsestest", "description": "{eu}\n{us}\n{glob}\n\n{hint}" }
+      "public_creds": {
+        "title": "EcoFlow Cloud – Developer API",
+        "description": "{hint}",
+        "data": {
+          "access_key": "Adgangsnøgle",
+          "secret_key": "Hemmelig nøgle"
+        }
+      },
+      "private_creds": {
+        "title": "EcoFlow Cloud – App Login",
+        "description": "{hint}",
+        "data": {
+          "email": "EcoFlow-konto e-mail",
+          "password": "EcoFlow-konto adgangskode"
+        }
+      },
+      "test": {
+        "title": "EcoFlow Cloud – Forbindelsestest",
+        "description": "{eu}\n{us}\n{glob}\n\n{hint}"
+      },
+      "developer_creds": {
+        "title": "EcoFlow Cloud - Developer API (Optional)",
+        "description": "{hint}",
+        "data": {
+          "dev_access_key": "Developer Access Key (optional)",
+          "dev_secret_key": "Developer Secret Key (optional)"
+        },
+        "data_description": {
+          "dev_access_key": "Enables switch and number control via REST API. Leave empty to skip.",
+          "dev_secret_key": "Required if Access Key is provided."
+        }
+      }
     },
-    "error": { "cannot_connect": "Kan ikke forbinde – kontrollér dine legitimationsoplysninger.", "unknown": "Uventet fejl. Tjek Home Assistant-loggene." },
-    "abort": { "already_configured": "Denne enhed er allerede konfigureret." }
+    "error": {
+      "cannot_connect": "Kan ikke forbinde – kontrollér dine legitimationsoplysninger.",
+      "unknown": "Uventet fejl. Tjek Home Assistant-loggene."
+    },
+    "abort": {
+      "already_configured": "Denne enhed er allerede konfigureret."
+    }
   },
   "options": {
     "step": {
       "init": {
         "title": "EcoFlow Cloud – Indstillinger ({mode})",
         "description": "Aktuel API-server: {current_host}",
-        "data": { "access_key": "Adgangsnøgle", "secret_key": "Hemmelig nøgle", "email": "EcoFlow-konto e-mail", "password": "EcoFlow-konto adgangskode", "device_sn": "Enhedens serienummer", "api_host": "API-server" }
+        "data": {
+          "access_key": "Adgangsnøgle",
+          "secret_key": "Hemmelig nøgle",
+          "email": "EcoFlow-konto e-mail",
+          "password": "EcoFlow-konto adgangskode",
+          "device_sn": "Enhedens serienummer",
+          "api_host": "API-server",
+          "dev_access_key": "Developer Access Key (optional)",
+          "dev_secret_key": "Developer Secret Key"
+        }
       }
     },
-    "error": { "cannot_connect": "Kan ikke forbinde med disse legitimationsoplysninger." }
+    "error": {
+      "cannot_connect": "Kan ikke forbinde med disse legitimationsoplysninger."
+    }
   }
 }
