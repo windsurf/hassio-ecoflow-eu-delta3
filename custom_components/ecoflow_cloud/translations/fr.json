@@ -5,8 +5,8 @@
         "title": "EcoFlow Cloud – Configuration",
         "description": "Ajoutez votre appareil EcoFlow. La **détection automatique** (recommandée) choisit la bonne API en fonction du numéro de série.",
         "data": {
-          "device_sn":  "Numéro de série de l'appareil",
-          "auth_mode":  "Méthode de connexion"
+          "device_sn": "Numéro de série de l'appareil",
+          "auth_mode": "Méthode de connexion"
         },
         "data_description": {
           "device_sn": "Indiqué sur l'étiquette de l'appareil ou dans l'application EcoFlow sous Informations",
@@ -25,13 +25,25 @@
         "title": "EcoFlow Cloud – Connexion via l'app",
         "description": "{hint}",
         "data": {
-          "email":    "Adresse e-mail du compte EcoFlow",
+          "email": "Adresse e-mail du compte EcoFlow",
           "password": "Mot de passe du compte EcoFlow"
         }
       },
       "test": {
         "title": "EcoFlow Cloud – Test de connexion",
         "description": "{eu}\n{us}\n{glob}\n\n{hint}"
+      },
+      "developer_creds": {
+        "title": "EcoFlow Cloud - Developer API (Optional)",
+        "description": "{hint}",
+        "data": {
+          "dev_access_key": "Developer Access Key (optional)",
+          "dev_secret_key": "Developer Secret Key (optional)"
+        },
+        "data_description": {
+          "dev_access_key": "Enables switch and number control via REST API. Leave empty to skip.",
+          "dev_secret_key": "Required if Access Key is provided."
+        }
       }
     },
     "error": {
@@ -50,10 +62,12 @@
         "data": {
           "access_key": "Clé d'accès",
           "secret_key": "Clé secrète",
-          "email":      "Adresse e-mail du compte EcoFlow",
-          "password":   "Mot de passe du compte EcoFlow",
-          "device_sn":  "Numéro de série de l'appareil",
-          "api_host":   "Serveur API"
+          "email": "Adresse e-mail du compte EcoFlow",
+          "password": "Mot de passe du compte EcoFlow",
+          "device_sn": "Numéro de série de l'appareil",
+          "api_host": "Serveur API",
+          "dev_access_key": "Developer Access Key (optional)",
+          "dev_secret_key": "Developer Secret Key"
         }
       }
     },
