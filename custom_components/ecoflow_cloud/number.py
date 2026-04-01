@@ -90,9 +90,9 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         mode=NumberMode.SLIDER,
         icon="mdi:battery-arrow-up",
         state_key=KEY_EMS_MAX_CHG_SOC,
-        cmd_module=MODULE_BMS,
-        cmd_operate="maxChargeSoc",
-        cmd_param_key="maxChargeSoc",
+        cmd_module=MODULE_BMS,   # protocol analysis: r(): upsConfig mod=2
+        cmd_operate="upsConfig",
+        cmd_param_key="maxChgSoc",  # protocol verified
     ),
     EcoFlowNumberDescription(
         key="min_discharge_level",
@@ -104,9 +104,9 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         mode=NumberMode.SLIDER,
         icon="mdi:battery-arrow-down",
         state_key=KEY_EMS_MIN_DSG_SOC,
-        cmd_module=MODULE_BMS,
-        cmd_operate="minDsgSoc",
-        cmd_param_key="minDsgSoc",
+        cmd_module=MODULE_BMS,   # protocol analysis: w(): dsgCfg mod=2
+        cmd_operate="dsgCfg",
+        cmd_param_key="minDsgSoc",  # protocol verified
     ),
     EcoFlowNumberDescription(
         key="generator_start_soc",
@@ -184,9 +184,9 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         mode=NumberMode.BOX,
         icon="mdi:sleep",
         state_key=KEY_STANDBY_TIME,
-        cmd_module=MODULE_PD,
+        cmd_module=MODULE_PD,    # protocol analysis: C(): standbyTime mod=1
         cmd_operate="standbyTime",
-        cmd_param_key="standbyMin",
+        cmd_param_key="standbyMin",  # protocol verified
     ),
     EcoFlowNumberDescription(
         key="ac_output_standby_time",
@@ -198,9 +198,9 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         mode=NumberMode.BOX,
         icon="mdi:power-sleep",
         state_key=KEY_AC_STANDBY_TIME,
-        cmd_module=MODULE_MPPT,
-        cmd_operate="standbyTime",
-        cmd_param_key="standbyMins",
+        cmd_module=MODULE_MPPT,  # protocol analysis: F(): standby mod=5
+        cmd_operate="standby",
+        cmd_param_key="standbyMins",  # protocol verified
     ),
     EcoFlowNumberDescription(
         key="dc_12v_standby_time",
@@ -228,9 +228,9 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         mode=NumberMode.SLIDER,
         icon="mdi:brightness-percent",
         state_key=KEY_LCD_BRIGHTNESS,
-        cmd_module=MODULE_PD,
+        cmd_module=MODULE_PD,    # protocol analysis: i(): lcdCfg mod=1 {delayOff=65535, brighLevel=value}
         cmd_operate="lcdCfg",
-        cmd_param_key="brightness",
+        cmd_params_fn=lambda v: {"brighLevel": int(v), "delayOff": 65535},
     ),
     EcoFlowNumberDescription(
         key="lcd_timeout",
@@ -245,6 +245,27 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         cmd_module=MODULE_PD,
         cmd_operate="lcdCfg",
         cmd_param_key="delayOff",
+    ),
+
+    # ── Backup Reserve ───────────────────────────────────────────────
+    EcoFlowNumberDescription(
+        key="backup_reserve_soc",
+        name="Backup Reserve SOC",
+        native_unit_of_measurement=PERCENTAGE,
+        native_min_value=0,
+        native_max_value=100,
+        native_step=1,
+        mode=NumberMode.BOX,
+        icon="mdi:battery-charging-medium",
+        state_key=KEY_BP_POWER_SOC,
+        cmd_module=MODULE_PD,    # protocol analysis: y(): watthConfig mod=1
+        cmd_operate="watthConfig",
+        cmd_params_fn=lambda v: {
+            "isConfig":  1,
+            "bpPowerSoc": int(v),
+            "minDsgSoc": 0,
+            "minChgSoc": 0,
+        },
     ),
 )
 
@@ -322,7 +343,7 @@ class EcoFlowNumberEntity(CoordinatorEntity[EcoflowCoordinator], NumberEntity):
                 )
                 return
             except Exception as exc:
-                _LOGGER.warning(
+                _LOGGER.debug(
                     "EcoFlow: REST SET number %s failed (%s) — falling back to MQTT",
                     desc.key, exc,
                 )
@@ -339,10 +360,11 @@ class EcoFlowNumberEntity(CoordinatorEntity[EcoflowCoordinator], NumberEntity):
             "sn":          self._sn,
             "moduleType":  desc.cmd_module,
             "operateType": desc.cmd_operate,
+            "from":        "Android",
             "params":      params,
         }
-        _LOGGER.info("EcoFlow: JSON SET number %s value=%s (no REST — may be ignored)", desc.key, value)
-        result = client.publish(topic, json.dumps(cmd), qos=0)
+        _LOGGER.info("EcoFlow: JSON SET number %s value=%s topic=%s params=%s", desc.key, value, topic, params)
+        result = client.publish(topic, json.dumps(cmd), qos=1)
         _LOGGER.debug("EcoFlow: Number publish mid=%s rc=%s", result.mid, result.rc)
 
     async def async_set_native_value(self, value: float) -> None:
