@@ -1,7 +1,7 @@
 """Constants for EcoFlow Cloud integration."""
 
 DOMAIN              = "ecoflow_cloud"
-INTEGRATION_VERSION = "0.2.22"
+INTEGRATION_VERSION = "0.2.23"
 
 # Config entry keys
 CONF_ACCESS_KEY = "access_key"
@@ -42,12 +42,6 @@ COORDINATOR_UPDATE_INTERVAL = 30  # seconds
 # Device info
 MANUFACTURER = "EcoFlow"
 
-# Serial number prefixes that require App Login (private API).
-# These devices return error 1006 on the Open API quota endpoint.
-# Sources:
-#   - https://github.com/tolwi/hassio-ecoflow-cloud
-#   - https://github.com/snell-evan-itt/hassio-ecoflow-cloud-US
-#   - Community reports / protocol analysis
 # Serial number prefixes for which the Developer REST API SET is blocked.
 # EcoFlow returns code=1006 "not allowed to be controlled" for these devices.
 # MQTT JSON SET (with "from":"Android") is the correct control path instead.
@@ -71,3 +65,7 @@ PRIVATE_API_SN_PREFIXES = (
     "DGEB",   # Delta Pro Ultra
     "DGEA",   # Delta Pro 3
 )
+
+# Sentinel value used by EcoFlow in cfgChgWatts to mean "keep current value".
+# The device echoes this back in telemetry — do not write to HA state.
+CHG_WATTS_SENTINEL = 255
