@@ -420,7 +420,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id].update({
         "mqtt_client":    client,
         "mqtt_topic_set": topic_set,
+        "mqtt_topic_get": topic_get,
         "mqtt_user":      init_user,
+        "mqtt_send_get":  lambda label="post_set": _send_json_get(client, label),
     })
 
     # ── Periodic recertification ──────────────────────────────────────────
