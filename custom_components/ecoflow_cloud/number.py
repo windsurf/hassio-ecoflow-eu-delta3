@@ -18,7 +18,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, MANUFACTURER
+from .const import DOMAIN, MANUFACTURER, CHG_WATTS_SENTINEL
 from .coordinator import EcoflowCoordinator
 from . import _next_id
 from .devices.delta3_1500 import (
@@ -26,15 +26,13 @@ from .devices.delta3_1500 import (
     KEY_EMS_MAX_CHG_SOC,
     KEY_EMS_MIN_DSG_SOC,
     KEY_LCD_BRIGHTNESS,
-    KEY_LCD_TIMEOUT,
-    KEY_STANDBY_TIME,
-    KEY_AC_STANDBY_TIME,
     KEY_MPPT_CFG_CHG_W,
-    KEY_DC12V_STANDBY,
     KEY_MIN_AC_SOC,
     KEY_BP_POWER_SOC,
     KEY_GEN_MIN_SOC,
     KEY_GEN_MAX_SOC,
+    KEY_SCR_STANDBY,
+    KEY_POW_STANDBY,
     AC_CHG_WATTS_MIN,
     AC_CHG_WATTS_MAX,
     AC_CHG_WATTS_STEP,
@@ -42,7 +40,6 @@ from .devices.delta3_1500 import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# Module type constants (EcoFlow MQTT protocol) — mirrors switch.py
 MODULE_PD   = 1
 MODULE_BMS  = 2
 MODULE_INV  = 3
@@ -57,6 +54,9 @@ class EcoFlowNumberDescription(NumberEntityDescription):
     cmd_operate:    str   = ""
     cmd_param_key:  str   = ""
     cmd_params_fn:  Any   = None
+    # v0.2.23: read_only=True means the entity is a sensor-like number —
+    # state is shown but no SET command is sent (operateType unknown)
+    read_only:      bool  = False
 
 
 NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
@@ -70,12 +70,13 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         native_step=AC_CHG_WATTS_STEP,
         mode=NumberMode.SLIDER,
         icon="mdi:transmission-tower-import",
-        state_key=KEY_MPPT_CFG_CHG_W,  # mppt.cfgChgWatts — configured charge power limit
+        # v0.2.23: shadow state — cfgChgWatts=255 is sentinel, never written to HA state
+        state_key=KEY_MPPT_CFG_CHG_W,
         cmd_module=MODULE_MPPT,
         cmd_operate="acChgCfg",
         cmd_params_fn=lambda v: {
             "chgWatts":     int(v),
-            "chgPauseFlag": 255,  # 255 = keep current pause state unchanged
+            "chgPauseFlag": 255,  # 255 = keep current pause state
         },
     ),
 
@@ -90,9 +91,9 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         mode=NumberMode.SLIDER,
         icon="mdi:battery-arrow-up",
         state_key=KEY_EMS_MAX_CHG_SOC,
-        cmd_module=MODULE_BMS,   # protocol analysis: r(): upsConfig mod=2
+        cmd_module=MODULE_BMS,
         cmd_operate="upsConfig",
-        cmd_param_key="maxChgSoc",  # protocol verified
+        cmd_param_key="maxChgSoc",
     ),
     EcoFlowNumberDescription(
         key="min_discharge_level",
@@ -104,9 +105,9 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         mode=NumberMode.SLIDER,
         icon="mdi:battery-arrow-down",
         state_key=KEY_EMS_MIN_DSG_SOC,
-        cmd_module=MODULE_BMS,   # protocol analysis: w(): dsgCfg mod=2
+        cmd_module=MODULE_BMS,
         cmd_operate="dsgCfg",
-        cmd_param_key="minDsgSoc",  # protocol verified
+        cmd_param_key="minDsgSoc",
     ),
     EcoFlowNumberDescription(
         key="generator_start_soc",
@@ -136,23 +137,26 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         cmd_operate="closeOilSoc",
         cmd_param_key="closeOilSoc",
     ),
+
+    # ── Backup Reserve ────────────────────────────────────────────────────
+    # battery_protection_soc removed — identical to min_discharge_level (same key + command)
     EcoFlowNumberDescription(
-        key="battery_protection_soc",
-        name="Battery Protection SOC",
+        key="backup_reserve_soc",
+        name="Backup Reserve SOC",
         native_unit_of_measurement=PERCENTAGE,
-        native_min_value=0,
+        native_min_value=5,
         native_max_value=100,
         native_step=5,
         mode=NumberMode.SLIDER,
-        icon="mdi:battery-lock",
+        icon="mdi:battery-charging-medium",
         state_key=KEY_BP_POWER_SOC,
         cmd_module=MODULE_PD,
         cmd_operate="watthConfig",
         cmd_params_fn=lambda v: {
             "isConfig":   1,
             "bpPowerSoc": int(v),
-            "minDsgSoc":  255,
-            "minChgSoc":  255,
+            "minDsgSoc":  0,
+            "minChgSoc":  0,
         },
     ),
     EcoFlowNumberDescription(
@@ -164,6 +168,7 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         native_step=5,
         mode=NumberMode.SLIDER,
         icon="mdi:power-plug-outline",
+        entity_registry_enabled_default=False,
         state_key=KEY_MIN_AC_SOC,
         cmd_module=MODULE_PD,
         cmd_operate="acAutoOutConfig",
@@ -173,48 +178,33 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         },
     ),
 
-    # ── Standby times ─────────────────────────────────────────────────────
+
+    # v0.2.23: nieuwe standby numbers — operateType nog onbekend, read_only voorlopig
     EcoFlowNumberDescription(
-        key="device_standby_time",
-        name="Device Standby Time",
+        key="screen_standby_time",
+        name="Screen Standby Time",
+        native_unit_of_measurement="min",
+        native_min_value=0,
+        native_max_value=720,
+        native_step=1,
+        mode=NumberMode.BOX,
+        icon="mdi:monitor",
+        entity_registry_enabled_default=False,
+        state_key=KEY_SCR_STANDBY,
+        read_only=True,  # operateType unknown — read-only until confirmed
+    ),
+    EcoFlowNumberDescription(
+        key="overall_standby_time",
+        name="Overall Standby Time",
         native_unit_of_measurement="min",
         native_min_value=0,
         native_max_value=1440,
-        native_step=30,
+        native_step=1,
         mode=NumberMode.BOX,
-        icon="mdi:sleep",
-        state_key=KEY_STANDBY_TIME,
-        cmd_module=MODULE_PD,    # protocol analysis: C(): standbyTime mod=1
-        cmd_operate="standbyTime",
-        cmd_param_key="standbyMin",  # protocol verified
-    ),
-    EcoFlowNumberDescription(
-        key="ac_output_standby_time",
-        name="AC Output Standby Time",
-        native_unit_of_measurement="min",
-        native_min_value=0,
-        native_max_value=720,
-        native_step=30,
-        mode=NumberMode.BOX,
-        icon="mdi:power-sleep",
-        state_key=KEY_AC_STANDBY_TIME,
-        cmd_module=MODULE_MPPT,  # protocol analysis: F(): standby mod=5
-        cmd_operate="standby",
-        cmd_param_key="standbyMins",  # protocol verified
-    ),
-    EcoFlowNumberDescription(
-        key="dc_12v_standby_time",
-        name="DC 12V Standby Time",
-        native_unit_of_measurement="min",
-        native_min_value=0,
-        native_max_value=720,
-        native_step=30,
-        mode=NumberMode.BOX,
-        icon="mdi:car-clock",
-        state_key=KEY_DC12V_STANDBY,
-        cmd_module=MODULE_MPPT,
-        cmd_operate="carStandby",
-        cmd_param_key="standbyMins",
+        icon="mdi:timer-outline",
+        entity_registry_enabled_default=False,
+        state_key=KEY_POW_STANDBY,
+        read_only=True,  # operateType unknown — read-only until confirmed
     ),
 
     # ── Display ───────────────────────────────────────────────────────────
@@ -227,46 +217,13 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
         native_step=25,
         mode=NumberMode.SLIDER,
         icon="mdi:brightness-percent",
+        entity_registry_enabled_default=False,
         state_key=KEY_LCD_BRIGHTNESS,
-        cmd_module=MODULE_PD,    # protocol analysis: i(): lcdCfg mod=1 {delayOff=65535, brighLevel=value}
+        cmd_module=MODULE_PD,
         cmd_operate="lcdCfg",
         cmd_params_fn=lambda v: {"brighLevel": int(v), "delayOff": 65535},
     ),
-    EcoFlowNumberDescription(
-        key="lcd_timeout",
-        name="LCD Timeout",
-        native_unit_of_measurement="s",
-        native_min_value=0,
-        native_max_value=300,
-        native_step=30,
-        mode=NumberMode.BOX,
-        icon="mdi:monitor-off",
-        state_key=KEY_LCD_TIMEOUT,
-        cmd_module=MODULE_PD,
-        cmd_operate="lcdCfg",
-        cmd_param_key="delayOff",
-    ),
 
-    # ── Backup Reserve ───────────────────────────────────────────────
-    EcoFlowNumberDescription(
-        key="backup_reserve_soc",
-        name="Backup Reserve SOC",
-        native_unit_of_measurement=PERCENTAGE,
-        native_min_value=0,
-        native_max_value=100,
-        native_step=1,
-        mode=NumberMode.BOX,
-        icon="mdi:battery-charging-medium",
-        state_key=KEY_BP_POWER_SOC,
-        cmd_module=MODULE_PD,    # protocol analysis: y(): watthConfig mod=1
-        cmd_operate="watthConfig",
-        cmd_params_fn=lambda v: {
-            "isConfig":  1,
-            "bpPowerSoc": int(v),
-            "minDsgSoc": 0,
-            "minChgSoc": 0,
-        },
-    ),
 )
 
 
@@ -311,11 +268,27 @@ class EcoFlowNumberEntity(CoordinatorEntity[EcoflowCoordinator], NumberEntity):
             model=DEVICE_MODEL,
         )
 
+
     @property
     def native_value(self) -> float | None:
         if not self.coordinator.data:
             return None
+
         val = self.coordinator.data.get(self.entity_description.state_key)
+
+        # AC Charging Speed: 255 is sentinel — never show it, use minimum as fallback.
+        # Real values (set via app or HA) arrive via telemetry push and are stored
+        # in coordinator.data without filtering. The quotaMap filter in coordinator.py
+        # prevents 255 from overwriting a real value during keepalive GET-ALL.
+        if self.entity_description.key == "ac_charging_speed":
+            try:
+                raw = int(val) if val is not None else None
+            except (TypeError, ValueError):
+                raw = None
+            if raw is None or raw == CHG_WATTS_SENTINEL:
+                return float(AC_CHG_WATTS_MIN)
+            return float(raw)
+
         try:
             return float(val) if val is not None else None
         except (TypeError, ValueError):
@@ -327,12 +300,20 @@ class EcoFlowNumberEntity(CoordinatorEntity[EcoflowCoordinator], NumberEntity):
 
     def _publish(self, value: float) -> None:
         desc = self.entity_description
+
+        if desc.read_only:
+            _LOGGER.warning(
+                "EcoFlow: %s is read-only (operateType unknown) — SET ignored",
+                desc.key,
+            )
+            return
+
         if desc.cmd_params_fn is not None:
             params = desc.cmd_params_fn(value)
         else:
             params = {desc.cmd_param_key: int(value)}
 
-        # ── Priority 1: REST API SET (Developer API) ─────────────────────
+        # Priority 1: REST API SET
         rest_api = self._entry_data.get("rest_api")
         if rest_api is not None and desc.cmd_operate:
             try:
@@ -348,7 +329,7 @@ class EcoFlowNumberEntity(CoordinatorEntity[EcoflowCoordinator], NumberEntity):
                     desc.key, exc,
                 )
 
-        # ── Priority 2: JSON MQTT SET (fallback) ─────────────────────────
+        # Priority 2: JSON MQTT SET
         client = self._entry_data.get("mqtt_client")
         topic  = self._entry_data.get("mqtt_topic_set")
         if not client or not topic:
@@ -363,7 +344,10 @@ class EcoFlowNumberEntity(CoordinatorEntity[EcoflowCoordinator], NumberEntity):
             "from":        "Android",
             "params":      params,
         }
-        _LOGGER.info("EcoFlow: JSON SET number %s value=%s topic=%s params=%s", desc.key, value, topic, params)
+        _LOGGER.info(
+            "EcoFlow: JSON SET number %s value=%s topic=%s params=%s",
+            desc.key, value, topic, params,
+        )
         result = client.publish(topic, json.dumps(cmd), qos=1)
         _LOGGER.debug("EcoFlow: Number publish mid=%s rc=%s", result.mid, result.rc)
 
