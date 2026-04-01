@@ -21,6 +21,7 @@ from .const import (
     CONF_DEV_ACCESS_KEY, CONF_DEV_SECRET_KEY, CONF_DEV_API_HOST,
     AUTH_MODE_PRIVATE,
     API_HOST_DEFAULT, API_HOST_EU, MQTT_KEEPALIVE, MQTT_RECONNECT_INTERVAL,
+    REST_SET_BLOCKED_SN_PREFIXES,
 )
 from .api_client import EcoFlowAPI, EcoFlowPrivateAPI, EcoFlowAPIError
 from .coordinator import EcoflowCoordinator
@@ -73,13 +74,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     dev_sk = data.get(CONF_DEV_SECRET_KEY, "")
     dev_api: EcoFlowAPI | None = None
 
-    if dev_ak and dev_sk:
+    # Skip REST SET for devices where EcoFlow blocks the Developer API (code=1006).
+    # These devices use MQTT JSON SET with "from":"Android" instead.
+    rest_blocked = any(sn.upper().startswith(p) for p in REST_SET_BLOCKED_SN_PREFIXES)
+
+    if dev_ak and dev_sk and not rest_blocked:
         dev_host = data.get(CONF_DEV_API_HOST, API_HOST_EU)
         dev_api  = EcoFlowAPI(dev_ak, dev_sk, sn, dev_host)
         _LOGGER.info("EcoFlow: Developer API configured for REST SET (host=%s)", dev_host)
         # In private mode, attach to the PrivateAPI so set_quota() delegates
         if isinstance(api, EcoFlowPrivateAPI):
             api.attach_developer_api(dev_api)
+    elif dev_ak and dev_sk and rest_blocked:
+        _LOGGER.info(
+            "EcoFlow: REST SET skipped for %s — SN prefix blocked by EcoFlow API. "
+            "Using MQTT JSON SET instead.", sn
+        )
     elif auth_mode == AUTH_MODE_PRIVATE:
         _LOGGER.warning(
             "EcoFlow: No Developer API credentials — switches/numbers will use "
@@ -273,7 +283,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # ── Protobuf detection ────────────────────────────────────────────
         # Delta 3 sends binary protobuf replies on topic_sub.
         # Bytes 0x0a / 0x12 are standard protobuf wire tags (field 1/2, LEN).
-        # Do not discard — log as hex for reverse engineering.
+        # Do not discard — log as hex for protocol analysis.
         if raw_bytes and raw_bytes[0] not in (0x7B, 0x5B):  # 0x7B='{', 0x5B='['
             is_proto = len(raw_bytes) >= 2 and raw_bytes[0] in (0x0a, 0x12)
             _LOGGER.debug(
