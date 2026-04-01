@@ -56,9 +56,9 @@ SELECT_DESCRIPTIONS: tuple[EcoFlowSelectDescription, ...] = (
         icon="mdi:current-dc",
         state_key=KEY_DC_CHG_CURRENT,
         options_map=_amp_map(DC_CHG_CURRENT_OPTIONS),  # {'4 A': 4000, '6 A': 6000, '8 A': 8000}
-        cmd_module=MODULE_MPPT,
+        cmd_module=MODULE_MPPT,  # protocol analysis: p(): dcChgCfg mod=5 {"dcChgCfg": value_in_mA}
         cmd_operate="dcChgCfg",
-        cmd_param_key="dcChgCurrent",
+        cmd_param_key="dcChgCfg",  # protocol verified: key is dcChgCfg not dcChgCurrent
     ),
 )
 
