@@ -2,7 +2,7 @@
 
 ## Diagnostic Tools
 
-Four test scripts to verify your EcoFlow API credentials. Available in Python and PowerShell.
+Two diagnostic scripts to verify your EcoFlow API credentials. Available in Python and PowerShell.
 
 ### test_credentials (.py / .ps1)
 
@@ -19,7 +19,7 @@ PowerShell -ExecutionPolicy Bypass -File test_credentials.ps1
 
 ### test_developer_api (.py / .ps1)
 
-Extended credential test that also validates **HMAC signing** for GET and PUT requests. Tests four endpoints: device list, MQTT certification, quota GET, and a safe SET command (beep ON). Use this to confirm REST API SET commands work for your device.
+Extended credential test that validates **HMAC signing** for GET and PUT requests. Tests device list, MQTT certification, quota GET, and REST SET signing. Also tests MQTT JSON SET for D361 devices. Use this to confirm credentials and connectivity.
 
 ```
 # Python
