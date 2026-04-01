@@ -14,6 +14,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     PERCENTAGE,
+    EntityCategory,
     UnitOfElectricCurrent,
     UnitOfElectricPotential,
     UnitOfEnergy,
@@ -862,10 +863,13 @@ async def async_setup_entry(
     coordinator = entry_data["coordinator"]
     sn          = entry_data["sn"]
 
-    async_add_entities(
+    entities: list = [
         EcoFlowSensorEntity(coordinator, desc, sn)
         for desc in SENSOR_DESCRIPTIONS
-    )
+    ]
+    # Diagnostic sensor — always added, shows connection mode in HA UI
+    entities.append(EcoFlowConnectionModeSensor(entry_data, sn))
+    async_add_entities(entities)
 
 
 class EcoFlowSensorEntity(CoordinatorEntity[EcoflowCoordinator], SensorEntity):
@@ -911,3 +915,62 @@ class EcoFlowSensorEntity(CoordinatorEntity[EcoflowCoordinator], SensorEntity):
     @property
     def available(self) -> bool:
         return bool(self.coordinator.data)
+
+
+class EcoFlowConnectionModeSensor(SensorEntity):
+    """Diagnostic sensor showing the active connection mode.
+
+    Values:
+      hybrid    — MQTT telemetry (Private API) + REST SET (Developer API)
+      mqtt_only — MQTT telemetry only, REST SET unavailable
+      rest_only — Developer API only (no MQTT / fallback)
+
+    Always enabled regardless of coordinator data — useful for diagnosing
+    setup problems before any telemetry arrives.
+    """
+
+    _attr_has_entity_name                 = True
+    _attr_entity_registry_enabled_default = True
+    _attr_icon                            = "mdi:connection"
+    _attr_entity_category                 = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, entry_data: dict, sn: str) -> None:
+        self._entry_data       = entry_data
+        self._sn               = sn
+        self._attr_unique_id   = f"{sn}_connection_mode"
+        self._attr_name        = "Connection Mode"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, sn)},
+            name=f"EcoFlow {DEVICE_MODEL}",
+            manufacturer=MANUFACTURER,
+            model=DEVICE_MODEL,
+        )
+
+    @property
+    def native_value(self) -> str:
+        """Return active connection mode string."""
+        has_mqtt = self._entry_data.get("mqtt_client") is not None
+        has_rest = self._entry_data.get("rest_api") is not None
+        if has_mqtt and has_rest:
+            return "hybrid"
+        if has_mqtt:
+            return "mqtt_only"
+        return "rest_only"
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Extra diagnostic detail visible in HA developer tools."""
+        has_rest   = self._entry_data.get("rest_api") is not None
+        has_mqtt   = self._entry_data.get("mqtt_client") is not None
+        api        = self._entry_data.get("api")
+        is_private = hasattr(api, "_email")
+        return {
+            "mqtt_connected":    has_mqtt,
+            "rest_api_attached": has_rest,
+            "auth_mode":         "private" if is_private else "public",
+            "sn":                self._sn,
+        }
+
+    @property
+    def available(self) -> bool:
+        return True  # always available — diagnostic sensor
