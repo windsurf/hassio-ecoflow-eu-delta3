@@ -19,6 +19,10 @@ from . import _next_id
 from .devices.delta3_1500 import (
     DEVICE_MODEL,
     KEY_DC_CHG_CURRENT,
+    KEY_LCD_TIMEOUT,
+    KEY_STANDBY_TIME,
+    KEY_AC_STANDBY_TIME,
+    KEY_DC12V_STANDBY,
     DC_CHG_CURRENT_OPTIONS,
 )
 
@@ -49,6 +53,83 @@ def _amp_map(ma_values: list[int]) -> dict[str, int]:
 
 
 SELECT_DESCRIPTIONS: tuple[EcoFlowSelectDescription, ...] = (
+    # ── Standby / timeouts ───────────────────────────────────────────────
+    # v0.2.23: moved from number to select — these are discrete options, not free values
+    EcoFlowSelectDescription(
+        key="screen_timeout",
+        name="Screen Timeout",
+        icon="mdi:monitor-off",
+        state_key=KEY_LCD_TIMEOUT,
+        options_map={
+            "Never":   0,
+            "10 sec":  10,
+            "30 sec":  30,
+            "1 min":   60,
+            "5 min":   300,
+            "30 min":  1800,
+        },
+        cmd_module=MODULE_PD,
+        cmd_operate="lcdCfg",
+        cmd_param_key="delayOff",
+    ),
+    EcoFlowSelectDescription(
+        key="unit_standby_time",
+        name="Unit Standby Time",
+        icon="mdi:sleep",
+        state_key=KEY_STANDBY_TIME,
+        options_map={
+            "Never":    0,
+            "30 min":   30,
+            "1 hr":     60,
+            "2 hr":     120,
+            "4 hr":     240,
+            "6 hr":     360,
+            "12 hr":    720,
+            "24 hr":    1440,
+        },
+        cmd_module=MODULE_PD,
+        cmd_operate="standbyTime",
+        cmd_param_key="standbyMin",
+    ),
+    EcoFlowSelectDescription(
+        key="ac_standby_time",
+        name="AC Standby Time",
+        icon="mdi:power-sleep",
+        state_key=KEY_AC_STANDBY_TIME,
+        options_map={
+            "Never":    0,
+            "30 min":   30,
+            "1 hr":     60,
+            "2 hr":     120,
+            "4 hr":     240,
+            "6 hr":     360,
+            "12 hr":    720,
+            "24 hr":    1440,
+        },
+        cmd_module=MODULE_MPPT,
+        cmd_operate="standby",
+        cmd_param_key="standbyMins",
+    ),
+    EcoFlowSelectDescription(
+        key="dc_12v_standby_time",
+        name="DC 12V Standby Time",
+        icon="mdi:car-clock",
+        state_key=KEY_DC12V_STANDBY,
+        options_map={
+            "Never":    0,
+            "30 min":   30,
+            "1 hr":     60,
+            "2 hr":     120,
+            "4 hr":     240,
+            "6 hr":     360,
+            "12 hr":    720,
+            "24 hr":    1440,
+        },
+        cmd_module=MODULE_MPPT,
+        cmd_operate="carStandby",
+        cmd_param_key="standbyMins",
+    ),
+
     # ── DC charging ───────────────────────────────────────────────────────
     EcoFlowSelectDescription(
         key="dc_charge_current",
