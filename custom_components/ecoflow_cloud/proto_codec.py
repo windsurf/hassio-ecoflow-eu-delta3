@@ -187,6 +187,126 @@ def build_charge_target(soc: int) -> bytes:
     return _wrap_cmd(inner, 3, _ts())
 
 
+# ---------------------------------------------------------------------------
+# PowerStream protobuf command builders
+# ---------------------------------------------------------------------------
+#
+# PowerStream uses a different envelope than Delta 3.  The outer message is
+# PowerStreamSendHeaderMsg (proto schema in tolwi/powerstream.proto).
+#
+# Header fields (PowerStreamHeader — field numbers from .proto):
+#   1  pdata (bytes)      — serialized inner payload
+#   2  src (int32)        — 32 (APP)
+#   3  dest (int32)       — 53 (MQTT)
+#   4  d_src (int32)      — 1
+#   5  d_dest (int32)     — 1
+#   7  check_type (int32) — 3
+#   8  cmd_func (int32)   — 20
+#   9  cmd_id (int32)     — per command
+#  10  data_len (int32)   — len(pdata)
+#  11  need_ack (int32)   — 1
+#  14  seq (int32)        — timestamp
+#  16  version (int32)    — 19
+#  17  payload_ver (int32) — 1
+#  23  from_ (string)     — "HomeAssistant"
+#  25  device_sn (string) — serial number
+#
+# PowerStreamSendHeaderMsg wraps one header in repeated field 1.
+#
+# All inner payloads are a single varint at field 1.
+# Source: tolwi/powerstream.proto + internal/powerstream.py Command enum.
+
+# Command IDs (cmd_func=20 for all)
+PS_CMD_PERMANENT_WATTS = 129   # output limit (deciWatts)
+PS_CMD_SUPPLY_PRIORITY = 130   # 0=supply first, 1=storage first
+PS_CMD_BAT_LOWER       = 132   # battery lower limit %
+PS_CMD_BAT_UPPER       = 133   # battery upper limit %
+PS_CMD_BRIGHTNESS      = 135   # LED brightness 0-1023
+PS_CMD_FEED_PROTECT    = 143   # feed-in control 0/1
+
+# Address constants
+_PS_SRC_APP  = 32
+_PS_DEST_MQTT = 53
+
+
+def _ps_header(cmd_id: int, pdata: bytes, device_sn: str) -> bytes:
+    """Build a PowerStreamHeader protobuf message."""
+    seq = _ts()
+    header = (
+        _fb(1, pdata) +             # pdata
+        _fv(2, _PS_SRC_APP) +       # src = APP
+        _fv(3, _PS_DEST_MQTT) +     # dest = MQTT
+        _fv(4, 1) +                 # d_src
+        _fv(5, 1) +                 # d_dest
+        _fv(7, 3) +                 # check_type
+        _fv(8, 20) +                # cmd_func
+        _fv(9, cmd_id) +            # cmd_id
+        _fv(10, len(pdata)) +       # data_len
+        _fv(11, 1) +                # need_ack
+        _fv(14, seq) +              # seq (timestamp)
+        _fv(16, 19) +               # version
+        _fv(17, 1) +                # payload_ver
+        _fs(23, "HomeAssistant") +   # from_
+        _fs(25, device_sn)           # device_sn
+    )
+    return header
+
+
+def _ps_wrap(cmd_id: int, pdata: bytes, device_sn: str) -> bytes:
+    """Wrap a PowerStream command in SendHeaderMsg (repeated field 1)."""
+    header = _ps_header(cmd_id, pdata, device_sn)
+    # PowerStreamSendHeaderMsg: field 1 (LEN) = header
+    return _fb(1, header)
+
+
+def ps_build_permanent_watts(watts: int, device_sn: str) -> bytes:
+    """Set output limit (permanentWatts) in deciWatts.
+
+    The EcoFlow app sends this value in deciWatts (watts * 10).
+    E.g. 200W → value=2000.  Range: 0–800 (PowerStream 800W).
+    """
+    deci = max(0, int(watts * 10))
+    pdata = _fv(1, deci)
+    return _ps_wrap(PS_CMD_PERMANENT_WATTS, pdata, device_sn)
+
+
+def ps_build_supply_priority(priority: int, device_sn: str) -> bytes:
+    """Set power supply priority.
+
+    0 = Prioritize power supply (feed into household first)
+    1 = Prioritize power storage (charge battery first)
+    """
+    pdata = _fv(1, int(priority))
+    return _ps_wrap(PS_CMD_SUPPLY_PRIORITY, pdata, device_sn)
+
+
+def ps_build_bat_lower(limit: int, device_sn: str) -> bytes:
+    """Set battery lower discharge limit (0–30%)."""
+    limit = max(0, min(30, int(limit)))
+    pdata = _fv(1, limit)
+    return _ps_wrap(PS_CMD_BAT_LOWER, pdata, device_sn)
+
+
+def ps_build_bat_upper(limit: int, device_sn: str) -> bytes:
+    """Set battery upper charge limit (50–100%)."""
+    limit = max(50, min(100, int(limit)))
+    pdata = _fv(1, limit)
+    return _ps_wrap(PS_CMD_BAT_UPPER, pdata, device_sn)
+
+
+def ps_build_brightness(level: int, device_sn: str) -> bytes:
+    """Set LED brightness (0–1023)."""
+    level = max(0, min(1023, int(level)))
+    pdata = _fv(1, level)
+    return _ps_wrap(PS_CMD_BRIGHTNESS, pdata, device_sn)
+
+
+def ps_build_feed_protect(enabled: bool, device_sn: str) -> bytes:
+    """Set feed-in control ON/OFF."""
+    pdata = _fv(1, 1 if enabled else 0)
+    return _ps_wrap(PS_CMD_FEED_PROTECT, pdata, device_sn)
+
+
 
 
 # ---------------------------------------------------------------------------
