@@ -17,7 +17,6 @@ from .const import DOMAIN, MANUFACTURER
 from .coordinator import EcoflowCoordinator
 from . import _next_id
 from .devices.delta3_1500 import (
-    DEVICE_MODEL,
     KEY_DC_CHG_CURRENT,
     KEY_LCD_TIMEOUT,
     KEY_STANDBY_TIME,
@@ -52,7 +51,7 @@ def _amp_map(ma_values: list[int]) -> dict[str, int]:
     return {f"{v // 1000} A": v for v in ma_values}
 
 
-SELECT_DESCRIPTIONS: tuple[EcoFlowSelectDescription, ...] = (
+_D361_SELECTS: tuple[EcoFlowSelectDescription, ...] = (
     # ── Standby / timeouts ───────────────────────────────────────────────
     # v0.2.23: moved from number to select — these are discrete options, not free values
     EcoFlowSelectDescription(
@@ -143,6 +142,89 @@ SELECT_DESCRIPTIONS: tuple[EcoFlowSelectDescription, ...] = (
     ),
 )
 
+from .devices.delta2_max import KEY_INV_STANDBY, KEY_DC_STANDBY_D2M
+
+_D2M_SELECTS: tuple[EcoFlowSelectDescription, ...] = (
+    EcoFlowSelectDescription(
+        key="screen_timeout", name="Screen Timeout", icon="mdi:monitor-off",
+        state_key=KEY_LCD_TIMEOUT,
+        options_map={"Never": 0, "10 sec": 10, "30 sec": 30, "1 min": 60, "5 min": 300, "30 min": 1800},
+        cmd_module=MODULE_PD, cmd_operate="lcdCfg", cmd_param_key="delayOff",
+    ),
+    EcoFlowSelectDescription(
+        key="unit_standby_time", name="Unit Standby Time", icon="mdi:sleep",
+        state_key=KEY_INV_STANDBY,
+        options_map={"Never": 0, "30 min": 30, "1 hr": 60, "2 hr": 120, "4 hr": 240, "6 hr": 360, "12 hr": 720, "24 hr": 1440},
+        cmd_module=MODULE_PD, cmd_operate="standbyTime", cmd_param_key="standbyMin",
+    ),
+    EcoFlowSelectDescription(
+        key="ac_standby_time", name="AC Standby Time", icon="mdi:power-sleep",
+        state_key=KEY_DC_STANDBY_D2M,
+        options_map={"Never": 0, "30 min": 30, "1 hr": 60, "2 hr": 120, "4 hr": 240, "6 hr": 360, "12 hr": 720, "24 hr": 1440},
+        cmd_module=MODULE_MPPT, cmd_operate="standbyTime", cmd_param_key="standbyMins",
+    ),
+)
+
+from .devices.river2 import (
+    KEY_CHG_TYPE as R2_CHG_TYPE,
+    KEY_SCR_STANDBY as R2_SCR_STANDBY,
+    KEY_POW_STANDBY as R2_POW_STANDBY,
+)
+
+_R2_SELECTS: tuple[EcoFlowSelectDescription, ...] = (
+    EcoFlowSelectDescription(
+        key="dc_charge_current", name="DC Charge Current", icon="mdi:current-dc",
+        state_key=KEY_DC_CHG_CURRENT,
+        options_map=_amp_map(DC_CHG_CURRENT_OPTIONS),
+        cmd_module=MODULE_MPPT, cmd_operate="dcChgCfg", cmd_param_key="dcChgCfg",
+    ),
+    EcoFlowSelectDescription(
+        key="dc_mode", name="DC Mode", icon="mdi:current-dc",
+        state_key=R2_CHG_TYPE,
+        options_map={"Auto": 0, "Solar Recharging": 1, "Car Recharging": 2},
+        cmd_module=MODULE_MPPT, cmd_operate="chaType", cmd_param_key="chaType",
+    ),
+    EcoFlowSelectDescription(
+        key="screen_timeout", name="Screen Timeout", icon="mdi:monitor-off",
+        state_key=R2_SCR_STANDBY,
+        options_map={"Never": 0, "10 sec": 10, "30 sec": 30, "1 min": 60, "5 min": 300, "30 min": 1800},
+        cmd_module=MODULE_MPPT, cmd_operate="lcdCfg", cmd_param_key="delayOff",
+    ),
+    EcoFlowSelectDescription(
+        key="unit_standby_time", name="Unit Standby Time", icon="mdi:sleep",
+        state_key=R2_POW_STANDBY,
+        options_map={"Never": 0, "30 min": 30, "1 hr": 60, "2 hr": 120, "4 hr": 240, "6 hr": 360, "12 hr": 720, "24 hr": 1440},
+        cmd_module=MODULE_MPPT, cmd_operate="standby", cmd_param_key="standbyMins",
+    ),
+    EcoFlowSelectDescription(
+        key="ac_standby_time", name="AC Standby Time", icon="mdi:power-sleep",
+        state_key=KEY_AC_STANDBY_TIME,
+        options_map={"Never": 0, "30 min": 30, "1 hr": 60, "2 hr": 120, "4 hr": 240, "6 hr": 360, "12 hr": 720, "24 hr": 1440},
+        cmd_module=MODULE_MPPT, cmd_operate="acStandby", cmd_param_key="standbyMins",
+    ),
+)
+
+# ── Description registry — keyed by device model ─────────────────────────────
+SELECT_DESCRIPTIONS_BY_MODEL: dict[str, tuple[EcoFlowSelectDescription, ...]] = {
+    "Delta 3 1500": _D361_SELECTS,
+    "Delta 2": _D361_SELECTS,  # identical select options (same keys + commands)
+    "Delta 2 Max": _D2M_SELECTS,
+    "Delta Pro": (),   # TCP commands not yet supported
+    "Delta Max": (),
+    "Delta Mini": (),
+    "River 2": _R2_SELECTS,
+    "River 2 Max": _R2_SELECTS,     # identical to R2
+    "River 2 Pro": _R2_SELECTS,     # identical to R2
+    "River Max": (),   # Gen 1 TCP commands not yet supported
+    "River Pro": (),
+    "River Mini": (),
+}
+
+
+def _get_select_descriptions(model: str) -> tuple[EcoFlowSelectDescription, ...]:
+    """Get select descriptions for a device model. Falls back to empty tuple."""
+    return SELECT_DESCRIPTIONS_BY_MODEL.get(model, ())
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -153,10 +235,13 @@ async def async_setup_entry(
     entry_data  = hass.data[DOMAIN][entry.entry_id]
     coordinator = entry_data["coordinator"]
     sn          = entry_data["sn"]
+    device_model = entry_data.get("device_model", "Delta 3 1500")
+
+    descriptions = _get_select_descriptions(device_model)
 
     async_add_entities(
-        EcoFlowSelectEntity(coordinator, desc, entry_data, sn)
-        for desc in SELECT_DESCRIPTIONS
+        EcoFlowSelectEntity(coordinator, desc, entry_data, sn, device_model)
+        for desc in descriptions
     )
 
 
@@ -171,6 +256,7 @@ class EcoFlowSelectEntity(CoordinatorEntity[EcoflowCoordinator], SelectEntity):
         description: EcoFlowSelectDescription,
         entry_data: dict,
         sn: str,
+        device_model: str = "Delta 3 1500",
     ) -> None:
         super().__init__(coordinator)
         self.entity_description  = description
@@ -180,9 +266,9 @@ class EcoFlowSelectEntity(CoordinatorEntity[EcoflowCoordinator], SelectEntity):
         self._attr_has_entity_name = True
         self._attr_device_info   = DeviceInfo(
             identifiers={(DOMAIN, sn)},
-            name=f"EcoFlow {DEVICE_MODEL}",
+            name=f"EcoFlow {device_model}",
             manufacturer=MANUFACTURER,
-            model=DEVICE_MODEL,
+            model=device_model,
         )
         # Build reverse map: raw value → label
         self._value_to_label: dict[int, str] = {
