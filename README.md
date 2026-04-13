@@ -207,6 +207,34 @@ logger:
 
 ## Changelog
 
+### v0.3.1 -- Gen 1 full control + PowerStream, Glacier, Wave 2
+
+**Gen 1 devices now have switches, numbers, and selects:**
+- Delta Pro (DAEB) -- 6 switches, 6 numbers, 4 selects
+- Delta Max (DCAB) -- 7 switches, 5 numbers
+- Delta Mini (DAAZ) -- 4 switches, 3 numbers, 4 selects
+- River Max (R601) -- 5 switches, 1 number, 3 selects
+- River Pro (R602) -- 7 switches, 1 number, 3 selects
+- River Mini (R501) -- 2 switches, 1 number
+
+Gen 1 TCP commands (moduleType=0, operateType=TCP, params.id) work through the existing _publish() infrastructure -- no protocol changes needed.
+
+**New device profiles:**
+- PowerStream / 600W / 800W (HW51, HW52, BKW) -- 21 sensors + 1 switch + 4 numbers + 1 select (full control, protobuf binary protocol)
+- Glacier (BX11) -- 21 sensors + 3 switches + 3 numbers (full control, JSON protocol)
+- Wave 2 (KT21) -- 13 sensors + 1 number + 4 selects (full control, JSON protocol)
+
+Glacier and Wave 2 use JSON protocol (moduleType=1) -- same infrastructure as Gen 1/Gen 2.
+PowerStream uses protobuf binary protocol with pure-Python encoder -- no protobuf library dependency.
+
+**Infrastructure:**
+- Added `proto_builder_sn` to switch/number/select descriptions for protobuf binary commands (PowerStream)
+- Added `cmd_params_coord_fn` to EcoFlowNumberDescription for commands needing sibling entity state (Glacier temp sync)
+- Dispatch priority in all _publish(): REST API > Proto binary > JSON MQTT
+- 6 PowerStream protobuf command builders in proto_codec.py
+
+15 devices total. All 15 with full control.
+
 ### v0.3.0 – Multi-device architecture + 12 device profiles
 
 **Architecture: multi-device support**
