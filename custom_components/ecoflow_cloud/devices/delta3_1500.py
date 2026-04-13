@@ -229,5 +229,51 @@ KEY_PD_USB_TIME     = "pd.usbUsedTime"                 # USB-A use time         
 KEY_PD_USBQC_TIME   = "pd.usbqcUsedTime"               # USB QC use time           (min)
 KEY_PD_WIFI_RCV     = "pd.wifiAutoRcvy"                # WiFi auto recovery mode
 
+# ── Slave battery (bms_slave) — v0.2.25 ───────────────────────────────────────
+# P361Z1H4PGBR0251 slave confirmed present via MQTT telemetry (April 2026)
+# Keys mirror bms_bmsStatus structure; units/scale identical to main battery.
+KEY_SLV_SOC         = "bms_slave.soc"                  # Slave SOC                 (%)
+KEY_SLV_SOC_FLOAT   = "bms_slave.f32ShowSoc"           # Slave SOC float (precise) (%)
+KEY_SLV_SOH         = "bms_slave.soh"                  # Slave state of health     (%)
+KEY_SLV_REAL_SOH    = "bms_slave.realSoh"              # Slave real SoH            (%)
+KEY_SLV_VOLT        = "bms_slave.vol"                  # Slave battery voltage     (mV)
+KEY_SLV_CURR        = "bms_slave.amp"                  # Slave battery current     (mA)
+KEY_SLV_TEMP        = "bms_slave.temp"                 # Slave battery temperature (°C)
+KEY_SLV_MIN_CELL_T  = "bms_slave.minCellTemp"          # Slave min cell temp       (°C)
+KEY_SLV_MAX_CELL_T  = "bms_slave.maxCellTemp"          # Slave max cell temp       (°C)
+KEY_SLV_MIN_MOS_T   = "bms_slave.minMosTemp"           # Slave min MOS temp        (°C)
+KEY_SLV_MAX_MOS_T   = "bms_slave.maxMosTemp"           # Slave max MOS temp        (°C)
+KEY_SLV_MIN_CELL_V  = "bms_slave.minCellVol"           # Slave min cell voltage    (mV)
+KEY_SLV_MAX_CELL_V  = "bms_slave.maxCellVol"           # Slave max cell voltage    (mV)
+KEY_SLV_MAX_VOL_D   = "bms_slave.maxVolDiff"           # Slave max voltage diff    (mV)
+KEY_SLV_REMAIN_CAP  = "bms_slave.remainCap"            # Slave remaining cap       (mAh)
+KEY_SLV_FULL_CAP    = "bms_slave.fullCap"              # Slave full capacity       (mAh)
+KEY_SLV_DESIGN_CAP  = "bms_slave.designCap"            # Slave design capacity     (mAh)
+KEY_SLV_INPUT_W     = "bms_slave.inputWatts"           # Slave input power         (W)
+KEY_SLV_OUTPUT_W    = "bms_slave.outputWatts"          # Slave output power        (W)
+KEY_SLV_CHG_STATE   = "bms_slave.chgState"             # Slave charge state
+KEY_SLV_CYCLES      = "bms_slave.cycles"               # Slave charge cycles       (#)
+KEY_SLV_REMAIN_T    = "bms_slave.remainTime"           # Slave remaining time      (min)
+KEY_SLV_DIFF_SOC    = "bms_slave.diffSoc"              # Slave SOC difference      (%)
+KEY_SLV_CHG_CAP     = "bms_slave.chgCap"               # Slave charged capacity    (mAh)
+KEY_SLV_DSG_CAP     = "bms_slave.dsgCap"               # Slave discharged cap      (mAh)
+KEY_SLV_ACCU_CHG    = "bms_slave.accuChgCap"           # Slave cumul. charged      (mAh)
+KEY_SLV_ACCU_DSG    = "bms_slave.accuDsgCap"           # Slave cumul. discharged   (mAh)
+KEY_SLV_ACCU_CHG_E  = "bms_slave.accuChgEnergy"        # Slave cumul. charge Wh    (Wh)
+KEY_SLV_ACCU_DSG_E  = "bms_slave.accuDsgEnergy"        # Slave cumul. discharge Wh (Wh)
+KEY_SLV_OHM_RES     = "bms_slave.ohmRes"               # Slave internal resistance (mΩ)
+KEY_SLV_SELF_DSG    = "bms_slave.selfDsgRate"          # Slave self-discharge rate (%/day)
+KEY_SLV_ROUND_TRIP  = "bms_slave.roundTrip"            # Slave round-trip eff.     (%)
+KEY_SLV_DEEP_DSG    = "bms_slave.deepDsgCnt"           # Slave deep discharge cnt
+KEY_SLV_SYS_STATE   = "bms_slave.sysState"             # Slave system state
+KEY_SLV_MOS_STATE   = "bms_slave.mosState"             # Slave MOS state
+KEY_SLV_BALANCE     = "bms_slave.balanceState"         # Slave cell balancing      (0/1)
+KEY_SLV_ERR_CODE    = "bms_slave.errCode"              # Slave error code
+KEY_SLV_ALL_ERR     = "bms_slave.allErrCode"           # Slave all error codes
+KEY_SLV_FAULT       = "bms_slave.bmsFault"             # Slave BMS fault
+KEY_SLV_ALL_FAULT   = "bms_slave.allBmsFault"          # Slave all BMS faults
+KEY_SLV_BQ_REG      = "bms_slave.bqSysStatReg"        # Slave BQ chip status
+KEY_SLV_CYC_SOH     = "bms_slave.cycSoh"               # Slave cycle SoH           (%)
+
 # ── Device info ───────────────────────────────────────────────────────────────
 DEVICE_MODEL = "Delta 3 1500"
