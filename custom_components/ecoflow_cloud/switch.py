@@ -181,8 +181,10 @@ SWITCH_DESCRIPTIONS: tuple[EcoFlowSwitchDescription, ...] = (
         name="Bypass",
         icon="mdi:electric-switch",
         state_key=KEY_AC_BYPASS_PAUSE,
-        inverted=True,
-        entity_registry_enabled_default=False,  # ACK only — no telemetry feedback on D361
+        # inverted=False: pd.acAutoOutPause is always 0 on D361 — never pushed via telemetry.
+        # Switch will always show OFF. Command (bypassBan) does work — relay switches
+        # as confirmed by pd.relaySwitchCnt incrementing. State feedback unavailable.
+        entity_registry_enabled_default=False,  # ACK only — state unreliable on D361
         cmd_module=MODULE_PD,
         cmd_operate="bypassBan",
         cmd_params=lambda on: {"banBypassEn": 0 if on else 1},
