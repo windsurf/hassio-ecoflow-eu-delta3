@@ -84,6 +84,8 @@ Confirmed via live protocol analysis (v0.2.22–v0.2.24): Delta 3 uses **MQTT JS
 | `mppt.chgPauseFlag` in telemetry | Never pushed — not a supported state key on D361 |
 | `bms_emsStatus.sysChgDsgState` | Charge state indicator: 0=idle, 1=discharging, 2=charging |
 | `pd.lcdOffSec = 65535` | Sentinel value for "Never" (not 0) |
+| `pd.acAutoOutPause` | Always 0 on D361 -- never pushed via telemetry. Bypass state unavailable. SET command works (relay confirmed). |
+| `mppt.cfgAcEnabled` | Updates 2s before `pd.acEnabled` and `inv.cfgAcEnabled` on AC Output toggle |
 
 ---
 
@@ -135,7 +137,7 @@ Confirmed via live protocol analysis (v0.2.22–v0.2.24): Delta 3 uses **MQTT JS
 
 > Entities marked **off** are disabled by default. Enable them in Settings → Devices & Services → your device → the entity.
 
-### Sensors (186)
+### Sensors (221)
 
 See [v0.2.23 README](https://github.com/windsurf/hassio-ecoflow-eu-delta3/releases/tag/v0.2.23) for full sensor list. No sensor changes in v0.2.24.
 
@@ -204,6 +206,31 @@ logger:
 ---
 
 ## Changelog
+
+### v0.2.25 – Slave battery sensors + Bypass fix
+
+**Added: Slave battery sensors (delta3_1500.py, sensor.py)**
+- Added 35 sensors for the P361Z1H4PGBR0251 slave battery, confirmed present via live MQTT telemetry
+- Primary sensors enabled by default: SOC, SoH, voltage, current, temperature, remaining capacity, input/output power, charge cycles
+- Diagnostics disabled by default: cell temperatures, cell voltages, cumulative capacity/energy, internal resistance, round-trip efficiency, deep discharge count, error codes
+- Keys follow bms_slave.* prefix, units/scale identical to main battery bms_bmsStatus.*
+- bms_slave.diffSoc and bms_slave.cycSoh arrive as comma-decimal strings from device firmware
+
+**Fixed: Bypass switch state (switch.py)**
+- Removed inverted=True from bypass switch -- pd.acAutoOutPause is always 0 on D361, never pushed via telemetry
+- Switch now shows OFF consistently (correct: bypass is inactive by default)
+- SET command (bypassBan mod1) confirmed working -- pd.relaySwitchCnt increments on each toggle
+- State feedback remains unavailable on D361; entity stays disabled by default
+
+**Investigated: Beep Sound switch**
+- Confirmed correct: mppt.beepState=1 means sound ON, switch shows ON
+- If switch shows ON: device beep is actually enabled -- turn off in app or via HA
+
+**MQTT telemetry analysis (this release)**
+- Confirmed via live MQTT listener: pd.acAutoOutPause never changes (Bypass state unavailable)
+- Confirmed: mppt.beepState is authoritative for beep state; pd.beepMode is static on D361
+- Confirmed: all three keys update on AC Output toggle: mppt.cfgAcEnabled (first), then inv.cfgAcEnabled and pd.acEnabled (~2s later)
+- bms_slave.* full telemetry confirmed: all primary keys arrive in latestQuotas and periodic push
 
 ### v0.2.24 – AC Standby fix + AC Charging read-only + UPS Mode + switch corrections
 
