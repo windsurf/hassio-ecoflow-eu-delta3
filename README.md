@@ -207,6 +207,39 @@ logger:
 
 ## Changelog
 
+### v0.3.0 – Multi-device architecture + 12 device profiles
+
+**Architecture: multi-device support**
+- Added device registry (`devices/registry.py`) with SN prefix to model mapping for 27+ EcoFlow devices
+- Device model is now auto-detected from serial number at setup time
+- Entity descriptions are dispatched per device model -- platform files (sensor.py, switch.py, number.py, select.py) load the correct description tuple based on detected device
+- DeviceInfo (model name in HA UI) is now dynamic instead of hardcoded
+- All entity unique_ids unchanged -- zero breaking changes for existing Delta 3 1500 users
+- Integration name updated from "EcoFlow Cloud (EU Delta 3)" to "EcoFlow Cloud"
+
+**Gen 2 devices -- full control (sensors + switches + numbers + selects):**
+- Delta 3 1500 (D361) -- 185 sensors, 13 switches, 9 numbers, 5 selects
+- Delta 2 (R331) -- 46 sensors, 8 switches, 6 numbers, 5 selects
+- Delta 2 Max (R351) -- 68 sensors, 7 switches, 6 numbers, 3 selects (dual solar, dual slave)
+- River 2 (R621) -- 32 sensors, 5 switches, 4 numbers, 5 selects
+- River 2 Max (R631) -- 32 sensors, 5 switches, 4 numbers, 5 selects
+- River 2 Pro (R622) -- 30 sensors, 3 switches, 3 numbers, 5 selects
+
+**Gen 1 devices -- read-only sensors (TCP command protocol not yet supported):**
+- Delta Pro (DAEB) -- ~57 sensors incl. dual slave + energy counters
+- Delta Max (DCAB) -- ~56 sensors incl. dual slave + energy counters
+- Delta Mini (DAAZ) -- ~40 sensors incl. energy counters
+- River Max (R601) -- ~38 sensors incl. slave + energy counters
+- River Pro (R602) -- ~32 sensors incl. slave + energy counters
+- River Mini (R501) -- ~17 sensors incl. energy counters
+
+**Device detection (SN prefix mapping):**
+- Delta series: D361, D362, D381, DGEA, DGEB, DAEB, R331, R351, DCAB, DAAZ
+- River series: R641, R651, R621, R631, R622, R601, R602, R501
+- PowerStream: HW51, HW52, BKW
+- Smart Plug: SP10
+- Climate: BX11, KT21
+
 ### v0.2.25 – Slave battery sensors + Bypass fix
 
 **Added: Slave battery sensors (delta3_1500.py, sensor.py)**
