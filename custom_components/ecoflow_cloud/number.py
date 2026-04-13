@@ -22,7 +22,6 @@ from .const import DOMAIN, MANUFACTURER, CHG_WATTS_SENTINEL
 from .coordinator import EcoflowCoordinator
 from . import _next_id
 from .devices.delta3_1500 import (
-    DEVICE_MODEL,
     KEY_EMS_MAX_CHG_SOC,
     KEY_EMS_MIN_DSG_SOC,
     KEY_LCD_BRIGHTNESS,
@@ -59,7 +58,7 @@ class EcoFlowNumberDescription(NumberEntityDescription):
     read_only:      bool  = False
 
 
-NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
+_D361_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
     # ── AC Charging ───────────────────────────────────────────────────────
     EcoFlowNumberDescription(
         key="ac_charging_speed",
@@ -226,6 +225,242 @@ NUMBER_DESCRIPTIONS: tuple[EcoFlowNumberDescription, ...] = (
 
 )
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Delta 2 — 6 numbers
+# Source: tolwi/hassio-ecoflow-cloud (internal/delta2.py)
+# Differences vs D361: AC charging max 1200W, generator start/stop levels added
+# ══════════════════════════════════════════════════════════════════════════════
+
+from .devices.delta2 import (
+    AC_CHG_WATTS_MIN as D2_AC_MIN,
+    AC_CHG_WATTS_MAX as D2_AC_MAX,
+    AC_CHG_WATTS_STEP as D2_AC_STEP,
+)
+
+_D2_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
+    EcoFlowNumberDescription(
+        key="ac_charging_speed",
+        name="AC Charging Speed",
+        native_unit_of_measurement="W",
+        native_min_value=D2_AC_MIN,
+        native_max_value=D2_AC_MAX,
+        native_step=D2_AC_STEP,
+        mode=NumberMode.SLIDER,
+        icon="mdi:transmission-tower-import",
+        state_key=KEY_MPPT_CFG_CHG_W,
+        cmd_module=MODULE_MPPT,
+        cmd_operate="acChgCfg",
+        cmd_params_fn=lambda v: {
+            "chgWatts":     int(v),
+            "chgPauseFlag": 255,
+        },
+    ),
+    EcoFlowNumberDescription(
+        key="max_charge_level",
+        name="Max Charge Level",
+        native_unit_of_measurement=PERCENTAGE,
+        native_min_value=50,
+        native_max_value=100,
+        native_step=5,
+        mode=NumberMode.SLIDER,
+        icon="mdi:battery-arrow-up",
+        state_key=KEY_EMS_MAX_CHG_SOC,
+        cmd_module=MODULE_BMS,
+        cmd_operate="upsConfig",
+        cmd_param_key="maxChgSoc",
+    ),
+    EcoFlowNumberDescription(
+        key="min_discharge_level",
+        name="Min Discharge Level",
+        native_unit_of_measurement=PERCENTAGE,
+        native_min_value=0,
+        native_max_value=30,
+        native_step=5,
+        mode=NumberMode.SLIDER,
+        icon="mdi:battery-arrow-down",
+        state_key=KEY_EMS_MIN_DSG_SOC,
+        cmd_module=MODULE_BMS,
+        cmd_operate="dsgCfg",
+        cmd_param_key="minDsgSoc",
+    ),
+    EcoFlowNumberDescription(
+        key="backup_reserve_soc",
+        name="Backup Reserve SOC",
+        native_unit_of_measurement=PERCENTAGE,
+        native_min_value=5,
+        native_max_value=100,
+        native_step=5,
+        mode=NumberMode.SLIDER,
+        icon="mdi:battery-charging-medium",
+        state_key=KEY_BP_POWER_SOC,
+        cmd_module=MODULE_PD,
+        cmd_operate="watthConfig",
+        cmd_params_fn=lambda v: {
+            "isConfig":   1,
+            "bpPowerSoc": int(v),
+            "minDsgSoc":  0,
+            "minChgSoc":  0,
+        },
+    ),
+    EcoFlowNumberDescription(
+        key="generator_start_soc",
+        name="Generator Start SOC",
+        native_unit_of_measurement=PERCENTAGE,
+        native_min_value=0,
+        native_max_value=30,
+        native_step=5,
+        mode=NumberMode.SLIDER,
+        icon="mdi:engine-outline",
+        state_key=KEY_GEN_MIN_SOC,
+        cmd_module=MODULE_BMS,
+        cmd_operate="openOilSoc",
+        cmd_param_key="openOilSoc",
+    ),
+    EcoFlowNumberDescription(
+        key="generator_stop_soc",
+        name="Generator Stop SOC",
+        native_unit_of_measurement=PERCENTAGE,
+        native_min_value=50,
+        native_max_value=100,
+        native_step=5,
+        mode=NumberMode.SLIDER,
+        icon="mdi:engine-off-outline",
+        state_key=KEY_GEN_MAX_SOC,
+        cmd_module=MODULE_BMS,
+        cmd_operate="closeOilSoc",
+        cmd_param_key="closeOilSoc",
+    ),
+)
+
+from .devices.delta2_max import (
+    AC_CHG_WATTS_MIN as D2M_AC_MIN,
+    AC_CHG_WATTS_MAX as D2M_AC_MAX,
+    AC_CHG_WATTS_STEP as D2M_AC_STEP,
+    KEY_AC_CHG_W_D2M, KEY_GEN_START_D2M, KEY_GEN_STOP_D2M,
+    KEY_INV_STANDBY,
+)
+
+_D2M_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
+    EcoFlowNumberDescription(
+        key="ac_charging_speed", name="AC Charging Speed",
+        native_unit_of_measurement="W",
+        native_min_value=D2M_AC_MIN, native_max_value=D2M_AC_MAX, native_step=D2M_AC_STEP,
+        mode=NumberMode.SLIDER, icon="mdi:transmission-tower-import",
+        state_key=KEY_AC_CHG_W_D2M,
+        cmd_module=MODULE_INV, cmd_operate="acChgCfg",
+        cmd_params_fn=lambda v: {"slowChgWatts": int(v), "fastChgWatts": 2000, "chgPauseFlag": 0},
+    ),
+    EcoFlowNumberDescription(
+        key="max_charge_level", name="Max Charge Level",
+        native_unit_of_measurement=PERCENTAGE,
+        native_min_value=50, native_max_value=100, native_step=5,
+        mode=NumberMode.SLIDER, icon="mdi:battery-arrow-up",
+        state_key=KEY_EMS_MAX_CHG_SOC,
+        cmd_module=MODULE_BMS, cmd_operate="upsConfig", cmd_param_key="maxChgSoc",
+    ),
+    EcoFlowNumberDescription(
+        key="min_discharge_level", name="Min Discharge Level",
+        native_unit_of_measurement=PERCENTAGE,
+        native_min_value=0, native_max_value=30, native_step=5,
+        mode=NumberMode.SLIDER, icon="mdi:battery-arrow-down",
+        state_key=KEY_EMS_MIN_DSG_SOC,
+        cmd_module=MODULE_BMS, cmd_operate="dsgCfg", cmd_param_key="minDsgSoc",
+    ),
+    EcoFlowNumberDescription(
+        key="backup_reserve_soc", name="Backup Reserve SOC",
+        native_unit_of_measurement=PERCENTAGE,
+        native_min_value=5, native_max_value=100, native_step=5,
+        mode=NumberMode.SLIDER, icon="mdi:battery-charging-medium",
+        state_key=KEY_BP_POWER_SOC,
+        cmd_module=MODULE_PD, cmd_operate="watthConfig",
+        cmd_params_fn=lambda v: {"isConfig": 1, "bpPowerSoc": int(v), "minDsgSoc": 0, "minChgSoc": 0},
+    ),
+    EcoFlowNumberDescription(
+        key="generator_start_soc", name="Generator Start SOC",
+        native_unit_of_measurement=PERCENTAGE,
+        native_min_value=0, native_max_value=30, native_step=5,
+        mode=NumberMode.SLIDER, icon="mdi:engine-outline",
+        state_key=KEY_GEN_START_D2M,
+        cmd_module=MODULE_BMS, cmd_operate="openOilSoc", cmd_param_key="openOilSoc",
+    ),
+    EcoFlowNumberDescription(
+        key="generator_stop_soc", name="Generator Stop SOC",
+        native_unit_of_measurement=PERCENTAGE,
+        native_min_value=50, native_max_value=100, native_step=5,
+        mode=NumberMode.SLIDER, icon="mdi:engine-off-outline",
+        state_key=KEY_GEN_STOP_D2M,
+        cmd_module=MODULE_BMS, cmd_operate="closeOilSoc", cmd_param_key="closeOilSoc",
+    ),
+)
+
+from .devices.river2 import (
+    AC_CHG_WATTS_MIN as R2_AC_MIN, AC_CHG_WATTS_MAX as R2_AC_MAX, AC_CHG_WATTS_STEP as R2_AC_STEP,
+    R2MAX_AC_CHG_MIN, R2MAX_AC_CHG_MAX, R2MAX_AC_CHG_STEP,
+    R2PRO_AC_CHG_MIN, R2PRO_AC_CHG_MAX, R2PRO_AC_CHG_STEP,
+)
+
+def _r2_numbers(ac_min, ac_max, ac_step, with_backup=True):
+    """Build River 2 number descriptions with per-variant AC charging limits."""
+    nums = [
+        EcoFlowNumberDescription(
+            key="ac_charging_speed", name="AC Charging Speed",
+            native_unit_of_measurement="W",
+            native_min_value=ac_min, native_max_value=ac_max, native_step=ac_step,
+            mode=NumberMode.SLIDER, icon="mdi:transmission-tower-import",
+            state_key=KEY_MPPT_CFG_CHG_W, cmd_module=MODULE_MPPT, cmd_operate="acChgCfg",
+            cmd_params_fn=lambda v: {"chgWatts": int(v), "chgPauseFlag": 255},
+        ),
+        EcoFlowNumberDescription(
+            key="max_charge_level", name="Max Charge Level",
+            native_unit_of_measurement=PERCENTAGE,
+            native_min_value=50, native_max_value=100, native_step=5,
+            mode=NumberMode.SLIDER, icon="mdi:battery-arrow-up",
+            state_key=KEY_EMS_MAX_CHG_SOC, cmd_module=MODULE_BMS, cmd_operate="upsConfig", cmd_param_key="maxChgSoc",
+        ),
+        EcoFlowNumberDescription(
+            key="min_discharge_level", name="Min Discharge Level",
+            native_unit_of_measurement=PERCENTAGE,
+            native_min_value=0, native_max_value=30, native_step=5,
+            mode=NumberMode.SLIDER, icon="mdi:battery-arrow-down",
+            state_key=KEY_EMS_MIN_DSG_SOC, cmd_module=MODULE_BMS, cmd_operate="dsgCfg", cmd_param_key="minDsgSoc",
+        ),
+    ]
+    if with_backup:
+        nums.append(EcoFlowNumberDescription(
+            key="backup_reserve_soc", name="Backup Reserve SOC",
+            native_unit_of_measurement=PERCENTAGE,
+            native_min_value=5, native_max_value=100, native_step=5,
+            mode=NumberMode.SLIDER, icon="mdi:battery-charging-medium",
+            state_key=KEY_BP_POWER_SOC, cmd_module=MODULE_PD, cmd_operate="watthConfig",
+            cmd_params_fn=lambda v: {"isConfig": 1, "bpPowerSoc": int(v), "minDsgSoc": 0, "minChgSoc": 0},
+        ))
+    return tuple(nums)
+
+_R2_NUMBERS:    tuple[EcoFlowNumberDescription, ...] = _r2_numbers(R2_AC_MIN, R2_AC_MAX, R2_AC_STEP)
+_R2MAX_NUMBERS: tuple[EcoFlowNumberDescription, ...] = _r2_numbers(R2MAX_AC_CHG_MIN, R2MAX_AC_CHG_MAX, R2MAX_AC_CHG_STEP)
+_R2PRO_NUMBERS: tuple[EcoFlowNumberDescription, ...] = _r2_numbers(R2PRO_AC_CHG_MIN, R2PRO_AC_CHG_MAX, R2PRO_AC_CHG_STEP, with_backup=False)
+
+# ── Description registry — keyed by device model ─────────────────────────────
+NUMBER_DESCRIPTIONS_BY_MODEL: dict[str, tuple[EcoFlowNumberDescription, ...]] = {
+    "Delta 3 1500": _D361_NUMBERS,
+    "Delta 2": _D2_NUMBERS,
+    "Delta 2 Max": _D2M_NUMBERS,
+    "Delta Pro": (),   # TCP commands not yet supported
+    "Delta Max": (),
+    "Delta Mini": (),
+    "River 2": _R2_NUMBERS,
+    "River 2 Max": _R2MAX_NUMBERS,
+    "River 2 Pro": _R2PRO_NUMBERS,
+    "River Max": (),   # Gen 1 TCP commands not yet supported
+    "River Pro": (),
+    "River Mini": (),
+}
+
+
+def _get_number_descriptions(model: str) -> tuple[EcoFlowNumberDescription, ...]:
+    """Get number descriptions for a device model. Falls back to empty tuple."""
+    return NUMBER_DESCRIPTIONS_BY_MODEL.get(model, ())
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -236,10 +471,13 @@ async def async_setup_entry(
     entry_data  = hass.data[DOMAIN][entry.entry_id]
     coordinator = entry_data["coordinator"]
     sn          = entry_data["sn"]
+    device_model = entry_data.get("device_model", "Delta 3 1500")
+
+    descriptions = _get_number_descriptions(device_model)
 
     async_add_entities(
-        EcoFlowNumberEntity(coordinator, desc, entry_data, sn)
-        for desc in NUMBER_DESCRIPTIONS
+        EcoFlowNumberEntity(coordinator, desc, entry_data, sn, device_model)
+        for desc in descriptions
     )
 
 
@@ -254,6 +492,7 @@ class EcoFlowNumberEntity(CoordinatorEntity[EcoflowCoordinator], NumberEntity):
         description: EcoFlowNumberDescription,
         entry_data: dict,
         sn: str,
+        device_model: str = "Delta 3 1500",
     ) -> None:
         super().__init__(coordinator)
         self.entity_description  = description
@@ -263,9 +502,9 @@ class EcoFlowNumberEntity(CoordinatorEntity[EcoflowCoordinator], NumberEntity):
         self._attr_has_entity_name = True
         self._attr_device_info   = DeviceInfo(
             identifiers={(DOMAIN, sn)},
-            name=f"EcoFlow {DEVICE_MODEL}",
+            name=f"EcoFlow {device_model}",
             manufacturer=MANUFACTURER,
-            model=DEVICE_MODEL,
+            model=device_model,
         )
 
 
