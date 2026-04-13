@@ -36,6 +36,15 @@ from .devices.delta3_1500 import (
     AC_CHG_WATTS_MAX,
     AC_CHG_WATTS_STEP,
 )
+from .devices import glacier as gl
+from .devices import wave2 as w2
+from .devices import powerstream as ps
+from .proto_codec import (
+    ps_build_permanent_watts,
+    ps_build_bat_lower,
+    ps_build_bat_upper,
+    ps_build_brightness,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,6 +62,11 @@ class EcoFlowNumberDescription(NumberEntityDescription):
     cmd_operate:    str   = ""
     cmd_param_key:  str   = ""
     cmd_params_fn:  Any   = None
+    # cmd_params_coord_fn: like cmd_params_fn but receives (value, coordinator_data)
+    # Use when the SET command needs current state of other entities (e.g. Glacier temps)
+    cmd_params_coord_fn: Any = None
+    # proto_builder_sn: (value, device_sn) → bytes for protobuf binary commands (PowerStream)
+    proto_builder_sn: Any = None
     # v0.2.23: read_only=True means the entity is a sensor-like number —
     # state is shown but no SET command is sent (operateType unknown)
     read_only:      bool  = False
@@ -440,20 +454,220 @@ _R2_NUMBERS:    tuple[EcoFlowNumberDescription, ...] = _r2_numbers(R2_AC_MIN, R2
 _R2MAX_NUMBERS: tuple[EcoFlowNumberDescription, ...] = _r2_numbers(R2MAX_AC_CHG_MIN, R2MAX_AC_CHG_MAX, R2MAX_AC_CHG_STEP)
 _R2PRO_NUMBERS: tuple[EcoFlowNumberDescription, ...] = _r2_numbers(R2PRO_AC_CHG_MIN, R2PRO_AC_CHG_MAX, R2PRO_AC_CHG_STEP, with_backup=False)
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Gen 1 numbers — TCP command protocol (moduleType=0, operateType="TCP")
+# ══════════════════════════════════════════════════════════════════════════════
+
+from .devices import delta_pro as dp
+from .devices import river1 as r1
+
+# Delta Pro: 6 numbers
+_DPRO_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
+    EcoFlowNumberDescription(key="max_charge_level", name="Max Charge Level", native_unit_of_measurement=PERCENTAGE,
+        native_min_value=50, native_max_value=100, native_step=5, mode=NumberMode.SLIDER, icon="mdi:battery-arrow-up",
+        state_key=dp.KEY_EMS_MAX_CHG_SOC, cmd_module=0, cmd_operate="TCP",
+        cmd_params_fn=lambda v: {"id": 49, "maxChgSoc": int(v)}),
+    EcoFlowNumberDescription(key="min_discharge_level", name="Min Discharge Level", native_unit_of_measurement=PERCENTAGE,
+        native_min_value=0, native_max_value=30, native_step=5, mode=NumberMode.SLIDER, icon="mdi:battery-arrow-down",
+        state_key=dp.KEY_EMS_MIN_DSG_SOC, cmd_module=0, cmd_operate="TCP",
+        cmd_params_fn=lambda v: {"id": 51, "minDsgSoc": int(v)}),
+    EcoFlowNumberDescription(key="backup_reserve_soc", name="Backup Reserve SOC", native_unit_of_measurement=PERCENTAGE,
+        native_min_value=5, native_max_value=100, native_step=5, mode=NumberMode.SLIDER, icon="mdi:battery-charging-medium",
+        state_key=dp.KEY_BP_POWER_SOC, cmd_module=0, cmd_operate="TCP",
+        cmd_params_fn=lambda v: {"isConfig": 1, "bpPowerSoc": int(v), "minDsgSoc": 0, "maxChgSoc": 0, "id": 94}),
+    EcoFlowNumberDescription(key="generator_start_soc", name="Generator Start SOC", native_unit_of_measurement=PERCENTAGE,
+        native_min_value=0, native_max_value=30, native_step=5, mode=NumberMode.SLIDER, icon="mdi:engine-outline",
+        state_key=dp.KEY_GEN_START, cmd_module=0, cmd_operate="TCP",
+        cmd_params_fn=lambda v: {"openOilSoc": int(v), "id": 52}),
+    EcoFlowNumberDescription(key="generator_stop_soc", name="Generator Stop SOC", native_unit_of_measurement=PERCENTAGE,
+        native_min_value=50, native_max_value=100, native_step=5, mode=NumberMode.SLIDER, icon="mdi:engine-off-outline",
+        state_key=dp.KEY_GEN_STOP, cmd_module=0, cmd_operate="TCP",
+        cmd_params_fn=lambda v: {"closeOilSoc": int(v), "id": 53}),
+    EcoFlowNumberDescription(key="ac_charging_speed", name="AC Charging Speed", native_unit_of_measurement="W",
+        native_min_value=200, native_max_value=2900, native_step=100, mode=NumberMode.SLIDER, icon="mdi:transmission-tower-import",
+        state_key=dp.KEY_AC_CHG_W, cmd_module=0, cmd_operate="TCP",
+        cmd_params_fn=lambda v: {"slowChgPower": int(v), "id": 69}),
+)
+
+# Delta Max: 5 numbers (same as Pro minus backup reserve)
+_DMAX_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
+    EcoFlowNumberDescription(key="max_charge_level", name="Max Charge Level", native_unit_of_measurement=PERCENTAGE,
+        native_min_value=50, native_max_value=100, native_step=5, mode=NumberMode.SLIDER, icon="mdi:battery-arrow-up",
+        state_key=dp.KEY_EMS_MAX_CHG_SOC, cmd_module=2, cmd_operate="TCP",
+        cmd_params_fn=lambda v: {"id": 49, "maxChgSoc": int(v)}),
+    EcoFlowNumberDescription(key="min_discharge_level", name="Min Discharge Level", native_unit_of_measurement=PERCENTAGE,
+        native_min_value=0, native_max_value=30, native_step=5, mode=NumberMode.SLIDER, icon="mdi:battery-arrow-down",
+        state_key=dp.KEY_EMS_MIN_DSG_SOC, cmd_module=2, cmd_operate="TCP",
+        cmd_params_fn=lambda v: {"id": 51, "minDsgSoc": int(v)}),
+    EcoFlowNumberDescription(key="generator_start_soc", name="Generator Start SOC", native_unit_of_measurement=PERCENTAGE,
+        native_min_value=0, native_max_value=30, native_step=5, mode=NumberMode.SLIDER, icon="mdi:engine-outline",
+        state_key=dp.KEY_GEN_START, cmd_module=2, cmd_operate="TCP",
+        cmd_params_fn=lambda v: {"id": 52, "openOilSoc": int(v)}),
+    EcoFlowNumberDescription(key="generator_stop_soc", name="Generator Stop SOC", native_unit_of_measurement=PERCENTAGE,
+        native_min_value=50, native_max_value=100, native_step=5, mode=NumberMode.SLIDER, icon="mdi:engine-off-outline",
+        state_key=dp.KEY_GEN_STOP, cmd_module=2, cmd_operate="TCP",
+        cmd_params_fn=lambda v: {"id": 53, "closeOilSoc": int(v)}),
+    EcoFlowNumberDescription(key="ac_charging_speed", name="AC Charging Speed", native_unit_of_measurement="W",
+        native_min_value=100, native_max_value=2000, native_step=100, mode=NumberMode.SLIDER, icon="mdi:transmission-tower-import",
+        state_key=dp.KEY_AC_CHG_W, cmd_module=0, cmd_operate="TCP",
+        cmd_params_fn=lambda v: {"slowChgPower": int(v), "id": 69}),
+)
+
+# Delta Mini: 3 numbers (max charge, min discharge, AC charging 900W)
+_DMINI_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
+    EcoFlowNumberDescription(key="max_charge_level", name="Max Charge Level", native_unit_of_measurement=PERCENTAGE,
+        native_min_value=50, native_max_value=100, native_step=5, mode=NumberMode.SLIDER, icon="mdi:battery-arrow-up",
+        state_key=dp.KEY_EMS_MAX_CHG_SOC, cmd_module=0, cmd_operate="TCP",
+        cmd_params_fn=lambda v: {"id": 49, "maxChgSoc": int(v)}),
+    EcoFlowNumberDescription(key="min_discharge_level", name="Min Discharge Level", native_unit_of_measurement=PERCENTAGE,
+        native_min_value=0, native_max_value=30, native_step=5, mode=NumberMode.SLIDER, icon="mdi:battery-arrow-down",
+        state_key=dp.KEY_EMS_MIN_DSG_SOC, cmd_module=0, cmd_operate="TCP",
+        cmd_params_fn=lambda v: {"id": 51, "minDsgSoc": int(v)}),
+    EcoFlowNumberDescription(key="ac_charging_speed", name="AC Charging Speed", native_unit_of_measurement="W",
+        native_min_value=200, native_max_value=900, native_step=100, mode=NumberMode.SLIDER, icon="mdi:transmission-tower-import",
+        state_key=dp.KEY_AC_CHG_W, cmd_module=0, cmd_operate="TCP",
+        cmd_params_fn=lambda v: {"slowChgPower": int(v), "id": 69}),
+)
+
+# River Max: 1 number (max charge level only, read-only in tolwi)
+_RMAX_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
+    EcoFlowNumberDescription(key="max_charge_level", name="Max Charge Level", native_unit_of_measurement=PERCENTAGE,
+        native_min_value=30, native_max_value=100, native_step=5, mode=NumberMode.SLIDER, icon="mdi:battery-arrow-up",
+        state_key="bmsMaster.maxChargeSoc", cmd_module=0, cmd_operate="TCP",
+        cmd_params_fn=lambda v: {"id": 49, "maxChgSoc": int(v)}),
+)
+
+# River Pro: 1 number (max charge level)
+_RPRO_NUMBERS: tuple[EcoFlowNumberDescription, ...] = _RMAX_NUMBERS  # identical
+
+# River Mini: 1 number (max charge level via inv.maxChargeSoc)
+_RMINI_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
+    EcoFlowNumberDescription(key="max_charge_level", name="Max Charge Level", native_unit_of_measurement=PERCENTAGE,
+        native_min_value=30, native_max_value=100, native_step=5, mode=NumberMode.SLIDER, icon="mdi:battery-arrow-up",
+        state_key=r1.RMINI_MAX_CHG_SOC, cmd_module=0, cmd_operate="TCP",
+        cmd_params_fn=lambda v: {"id": 0, "maxChgSoc": int(v)}),
+)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Glacier — 3 numbers (Left/Right/Combined set temperature)
+# JSON protocol: moduleType=1, operateType="temp"
+# All three temps must be sent together; cmd_params_coord_fn reads siblings.
+# ══════════════════════════════════════════════════════════════════════════════
+
+_GL_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
+    EcoFlowNumberDescription(
+        key="left_set_temp", name="Left Set Temperature",
+        native_unit_of_measurement="°C",
+        native_min_value=-25, native_max_value=10, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:thermometer-chevron-down",
+        state_key=gl.KEY_LEFT_SET_T, cmd_module=1, cmd_operate="temp",
+        cmd_params_coord_fn=lambda v, d: {
+            "tmpL": int(v),
+            "tmpR": int(d.get(gl.KEY_RIGHT_SET_T, 0)),
+            "tmpM": int(d.get(gl.KEY_COMBINED_SET, 0)),
+        },
+    ),
+    EcoFlowNumberDescription(
+        key="right_set_temp", name="Right Set Temperature",
+        native_unit_of_measurement="°C",
+        native_min_value=-25, native_max_value=10, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:thermometer-chevron-down",
+        state_key=gl.KEY_RIGHT_SET_T, cmd_module=1, cmd_operate="temp",
+        cmd_params_coord_fn=lambda v, d: {
+            "tmpL": int(d.get(gl.KEY_LEFT_SET_T, 0)),
+            "tmpR": int(v),
+            "tmpM": int(d.get(gl.KEY_COMBINED_SET, 0)),
+        },
+    ),
+    EcoFlowNumberDescription(
+        key="combined_set_temp", name="Combined Set Temperature",
+        native_unit_of_measurement="°C",
+        native_min_value=-25, native_max_value=10, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:thermometer",
+        state_key=gl.KEY_COMBINED_SET, cmd_module=1, cmd_operate="temp",
+        cmd_params_coord_fn=lambda v, d: {
+            "tmpL": int(d.get(gl.KEY_LEFT_SET_T, 0)),
+            "tmpR": int(d.get(gl.KEY_RIGHT_SET_T, 0)),
+            "tmpM": int(v),
+        },
+    ),
+)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Wave 2 — 1 number (Set Temperature)
+# JSON protocol: moduleType=1, operateType="setTemp"
+# ══════════════════════════════════════════════════════════════════════════════
+
+_W2_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
+    EcoFlowNumberDescription(
+        key="set_temp", name="Set Temperature",
+        native_unit_of_measurement="°C",
+        native_min_value=0, native_max_value=40, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:thermometer",
+        state_key=w2.KEY_SET_TEMP, cmd_module=1, cmd_operate="setTemp",
+        cmd_params_fn=lambda v: {"setTemp": int(v)},
+    ),
+)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PowerStream — 4 numbers (Output Limit, Battery Lower/Upper, Brightness)
+# Protobuf binary protocol: cmd_func=20, cmd_id per command
+# Output limit is in Watts (builder converts to deciWatts internally)
+# ══════════════════════════════════════════════════════════════════════════════
+
+_PS_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
+    EcoFlowNumberDescription(
+        key="output_limit", name="Output Limit",
+        native_unit_of_measurement="W",
+        native_min_value=0, native_max_value=800, native_step=10,
+        mode=NumberMode.SLIDER, icon="mdi:transmission-tower-import",
+        state_key=ps.KEY_OTHER_LOADS,
+        proto_builder_sn=lambda v, sn: ps_build_permanent_watts(int(v), sn),
+    ),
+    EcoFlowNumberDescription(
+        key="battery_lower_limit", name="Battery Lower Limit",
+        native_unit_of_measurement="%",
+        native_min_value=0, native_max_value=30, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:battery-arrow-down",
+        state_key=ps.KEY_LOWER_LIMIT,
+        proto_builder_sn=lambda v, sn: ps_build_bat_lower(int(v), sn),
+    ),
+    EcoFlowNumberDescription(
+        key="battery_upper_limit", name="Battery Upper Limit",
+        native_unit_of_measurement="%",
+        native_min_value=50, native_max_value=100, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:battery-arrow-up",
+        state_key=ps.KEY_UPPER_LIMIT,
+        proto_builder_sn=lambda v, sn: ps_build_bat_upper(int(v), sn),
+    ),
+    EcoFlowNumberDescription(
+        key="led_brightness", name="LED Brightness",
+        native_min_value=0, native_max_value=1023, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:brightness-6",
+        state_key=ps.KEY_BRIGHTNESS,
+        proto_builder_sn=lambda v, sn: ps_build_brightness(int(v), sn),
+    ),
+)
+
 # ── Description registry — keyed by device model ─────────────────────────────
 NUMBER_DESCRIPTIONS_BY_MODEL: dict[str, tuple[EcoFlowNumberDescription, ...]] = {
     "Delta 3 1500": _D361_NUMBERS,
     "Delta 2": _D2_NUMBERS,
     "Delta 2 Max": _D2M_NUMBERS,
-    "Delta Pro": (),   # TCP commands not yet supported
-    "Delta Max": (),
-    "Delta Mini": (),
+    "Delta Pro": _DPRO_NUMBERS,
+    "Delta Max": _DMAX_NUMBERS,
+    "Delta Mini": _DMINI_NUMBERS,
     "River 2": _R2_NUMBERS,
     "River 2 Max": _R2MAX_NUMBERS,
     "River 2 Pro": _R2PRO_NUMBERS,
-    "River Max": (),   # Gen 1 TCP commands not yet supported
-    "River Pro": (),
-    "River Mini": (),
+    "River Max": _RMAX_NUMBERS,
+    "River Pro": _RPRO_NUMBERS,
+    "River Mini": _RMINI_NUMBERS,
+    "PowerStream": _PS_NUMBERS,
+    "PowerStream 600W": _PS_NUMBERS,
+    "PowerStream 800W": _PS_NUMBERS,
+    "Glacier": _GL_NUMBERS,
+    "Wave 2": _W2_NUMBERS,
 }
 
 
@@ -547,7 +761,9 @@ class EcoFlowNumberEntity(CoordinatorEntity[EcoflowCoordinator], NumberEntity):
             )
             return
 
-        if desc.cmd_params_fn is not None:
+        if desc.cmd_params_coord_fn is not None:
+            params = desc.cmd_params_coord_fn(value, self.coordinator.data or {})
+        elif desc.cmd_params_fn is not None:
             params = desc.cmd_params_fn(value)
         else:
             params = {desc.cmd_param_key: int(value)}
@@ -568,7 +784,23 @@ class EcoFlowNumberEntity(CoordinatorEntity[EcoflowCoordinator], NumberEntity):
                     desc.key, exc,
                 )
 
-        # Priority 2: JSON MQTT SET
+        # Priority 2: Protobuf binary MQTT SET (PowerStream)
+        if desc.proto_builder_sn is not None:
+            client = self._entry_data.get("mqtt_client")
+            topic  = self._entry_data.get("mqtt_topic_set")
+            if not client or not topic:
+                _LOGGER.error("EcoFlow: no MQTT client — cannot send %s proto command", desc.key)
+                return
+            payload = desc.proto_builder_sn(value, self._sn)
+            _LOGGER.info(
+                "EcoFlow: PROTO SET number %s value=%s topic=%s len=%d",
+                desc.key, value, topic, len(payload),
+            )
+            result = client.publish(topic, payload, qos=1)
+            _LOGGER.debug("EcoFlow: Proto publish mid=%s rc=%s", result.mid, result.rc)
+            return
+
+        # Priority 3: JSON MQTT SET
         client = self._entry_data.get("mqtt_client")
         topic  = self._entry_data.get("mqtt_topic_set")
         if not client or not topic:
