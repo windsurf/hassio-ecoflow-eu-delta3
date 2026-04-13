@@ -24,6 +24,9 @@ from .devices.delta3_1500 import (
     KEY_DC12V_STANDBY,
     DC_CHG_CURRENT_OPTIONS,
 )
+from .devices import wave2 as w2
+from .devices import powerstream as ps
+from .proto_codec import ps_build_supply_priority
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,6 +45,8 @@ class EcoFlowSelectDescription(SelectEntityDescription):
     cmd_module:  int             = 0
     cmd_operate: str             = ""
     cmd_param_key: str           = ""
+    # proto_builder_sn: (raw_value, device_sn) → bytes for protobuf binary commands (PowerStream)
+    proto_builder_sn: Any        = None
     entity_registry_enabled_default: bool = True
 
 
@@ -204,20 +209,111 @@ _R2_SELECTS: tuple[EcoFlowSelectDescription, ...] = (
     ),
 )
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Gen 1 selects — TCP command protocol
+# ══════════════════════════════════════════════════════════════════════════════
+
+from .devices import delta_pro as dp
+
+UNIT_TIMEOUT_LIMITED = {"Never": 0, "30 min": 30, "1 hr": 60, "2 hr": 120, "6 hr": 360, "12 hr": 720}
+AC_TIMEOUT_LIMITED   = {"Never": 0, "2 hr": 120, "4 hr": 240, "6 hr": 360, "12 hr": 720, "24 hr": 1440}
+DC_TIMEOUT_LIMITED   = {"Never": 0, "2 hr": 120, "4 hr": 240, "6 hr": 360, "12 hr": 720, "24 hr": 1440}
+SCREEN_TIMEOUT_OPTS  = {"Never": 0, "10 sec": 10, "30 sec": 30, "1 min": 60, "5 min": 300, "30 min": 1800}
+
+# Delta Pro: 4 selects (DC Charge Current, Screen, Unit Standby, AC Standby)
+_DPRO_SELECTS: tuple[EcoFlowSelectDescription, ...] = (
+    EcoFlowSelectDescription(key="dc_charge_current", name="DC Charge Current", icon="mdi:current-dc",
+        state_key=dp.KEY_DC_CHG_CURRENT, options_map=_amp_map(dp.DC_CHG_CURRENT_OPTIONS),
+        cmd_module=0, cmd_operate="TCP", cmd_param_key="currMa"),
+    EcoFlowSelectDescription(key="screen_timeout", name="Screen Timeout", icon="mdi:monitor-off",
+        state_key=dp.KEY_LCD_TIMEOUT, options_map=SCREEN_TIMEOUT_OPTS,
+        cmd_module=0, cmd_operate="TCP", cmd_param_key="lcdTime"),
+    EcoFlowSelectDescription(key="unit_standby_time", name="Unit Standby Time", icon="mdi:sleep",
+        state_key=dp.KEY_STANDBY_MODE, options_map=UNIT_TIMEOUT_LIMITED,
+        cmd_module=0, cmd_operate="TCP", cmd_param_key="standByMode"),
+    EcoFlowSelectDescription(key="ac_standby_time", name="AC Standby Time", icon="mdi:power-sleep",
+        state_key=dp.KEY_AC_STANDBY, options_map=AC_TIMEOUT_LIMITED,
+        cmd_module=0, cmd_operate="TCP", cmd_param_key="standByMins"),
+)
+
+# River Max: 3 selects (Unit Standby, DC Timeout, AC Timeout)
+_RMAX_SELECTS: tuple[EcoFlowSelectDescription, ...] = (
+    EcoFlowSelectDescription(key="unit_standby_time", name="Unit Standby Time", icon="mdi:sleep",
+        state_key="pd.standByMode", options_map=UNIT_TIMEOUT_LIMITED,
+        cmd_module=0, cmd_operate="TCP", cmd_param_key="standByMode"),
+    EcoFlowSelectDescription(key="dc_standby_time", name="DC Standby Time", icon="mdi:car-clock",
+        state_key="pd.carDelayOffMin", options_map=DC_TIMEOUT_LIMITED,
+        cmd_module=0, cmd_operate="TCP", cmd_param_key="carDelayOffMin"),
+    EcoFlowSelectDescription(key="ac_standby_time", name="AC Standby Time", icon="mdi:power-sleep",
+        state_key="inv.cfgStandbyMin", options_map=AC_TIMEOUT_LIMITED,
+        cmd_module=0, cmd_operate="TCP", cmd_param_key="standByMins"),
+)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Wave 2 — 4 selects (Main Mode, Fan Speed, Remote Mode, Sub-Mode)
+# JSON protocol: moduleType=1, operateType per command
+# ══════════════════════════════════════════════════════════════════════════════
+
+_W2_SELECTS: tuple[EcoFlowSelectDescription, ...] = (
+    EcoFlowSelectDescription(
+        key="main_mode", name="Main Mode", icon="mdi:hvac",
+        state_key=w2.KEY_MAIN_MODE,
+        options_map={"Cool": 0, "Heat": 1, "Fan": 2},
+        cmd_module=1, cmd_operate="mainMode", cmd_param_key="mainMode",
+    ),
+    EcoFlowSelectDescription(
+        key="fan_speed", name="Fan Speed", icon="mdi:fan",
+        state_key=w2.KEY_FAN_VALUE,
+        options_map={"Low": 0, "Medium": 1, "High": 2},
+        cmd_module=1, cmd_operate="fanValue", cmd_param_key="fanValue",
+    ),
+    EcoFlowSelectDescription(
+        key="remote_mode", name="Remote Startup/Shutdown", icon="mdi:power",
+        state_key=w2.KEY_POWER_MODE,
+        options_map={"Startup": 1, "Standby": 2, "Shutdown": 3},
+        cmd_module=1, cmd_operate="powerMode", cmd_param_key="powerMode",
+    ),
+    EcoFlowSelectDescription(
+        key="sub_mode", name="Sub-Mode", icon="mdi:tune-variant",
+        state_key=w2.KEY_SUB_MODE,
+        options_map={"Max": 0, "Sleep": 1, "Eco": 2, "Manual": 3},
+        cmd_module=1, cmd_operate="subMode", cmd_param_key="subMode",
+    ),
+)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PowerStream — 1 select (Power Supply Priority)
+# Protobuf binary protocol: cmd_func=20, cmd_id=130
+# ══════════════════════════════════════════════════════════════════════════════
+
+_PS_SELECTS: tuple[EcoFlowSelectDescription, ...] = (
+    EcoFlowSelectDescription(
+        key="supply_priority", name="Power Supply Mode", icon="mdi:lightning-bolt",
+        state_key=ps.KEY_SUPPLY_PRIO,
+        options_map={"Prioritize power supply": 0, "Prioritize power storage": 1},
+        proto_builder_sn=lambda v, sn: ps_build_supply_priority(int(v), sn),
+    ),
+)
+
 # ── Description registry — keyed by device model ─────────────────────────────
 SELECT_DESCRIPTIONS_BY_MODEL: dict[str, tuple[EcoFlowSelectDescription, ...]] = {
     "Delta 3 1500": _D361_SELECTS,
-    "Delta 2": _D361_SELECTS,  # identical select options (same keys + commands)
+    "Delta 2": _D361_SELECTS,
     "Delta 2 Max": _D2M_SELECTS,
-    "Delta Pro": (),   # TCP commands not yet supported
-    "Delta Max": (),
-    "Delta Mini": (),
+    "Delta Pro": _DPRO_SELECTS,
+    "Delta Max": (),              # selects commented out in tolwi source
+    "Delta Mini": _DPRO_SELECTS,  # same selects as Pro (confirmed in tolwi)
     "River 2": _R2_SELECTS,
-    "River 2 Max": _R2_SELECTS,     # identical to R2
-    "River 2 Pro": _R2_SELECTS,     # identical to R2
-    "River Max": (),   # Gen 1 TCP commands not yet supported
-    "River Pro": (),
+    "River 2 Max": _R2_SELECTS,
+    "River 2 Pro": _R2_SELECTS,
+    "River Max": _RMAX_SELECTS,
+    "River Pro": _RMAX_SELECTS,   # same selects as Max (confirmed in tolwi)
     "River Mini": (),
+    "PowerStream": _PS_SELECTS,
+    "PowerStream 600W": _PS_SELECTS,
+    "PowerStream 800W": _PS_SELECTS,
+    "Glacier": (),  # no selects (tolwi confirms empty)
+    "Wave 2": _W2_SELECTS,
 }
 
 
@@ -309,7 +405,23 @@ class EcoFlowSelectEntity(CoordinatorEntity[EcoflowCoordinator], SelectEntity):
                     desc.key, exc,
                 )
 
-        # ── Priority 2: JSON MQTT SET (fallback) ─────────────────────────
+        # ── Priority 2: Protobuf binary MQTT SET (PowerStream) ─────────
+        if desc.proto_builder_sn is not None:
+            client = self._entry_data.get("mqtt_client")
+            topic  = self._entry_data.get("mqtt_topic_set")
+            if not client or not topic:
+                _LOGGER.error("EcoFlow: no MQTT client — cannot send %s proto command", desc.key)
+                return
+            payload = desc.proto_builder_sn(raw_value, self._sn)
+            _LOGGER.info(
+                "EcoFlow: PROTO SET select %s value=%s topic=%s len=%d",
+                desc.key, raw_value, topic, len(payload),
+            )
+            result = client.publish(topic, payload, qos=1)
+            _LOGGER.debug("EcoFlow: Proto publish mid=%s rc=%s", result.mid, result.rc)
+            return
+
+        # ── Priority 3: JSON MQTT SET (fallback) ─────────────────────────
         client = self._entry_data.get("mqtt_client")
         topic  = self._entry_data.get("mqtt_topic_set")
         if not client or not topic:
