@@ -65,6 +65,9 @@ class EcoFlowSwitchDescription(SwitchEntityDescription):
     # proto_builder_sn: like proto_builder but receives (value, device_sn) → bytes
     # Used by PowerStream which needs device_sn in the protobuf envelope
     proto_builder_sn: Optional[Callable] = None
+    # optimistic: update coordinator.data immediately after SET command
+    # Use when the device does not push state feedback via telemetry
+    optimistic:   bool                       = False
     entity_registry_enabled_default: bool = True
 
 
@@ -176,7 +179,10 @@ _D361_SWITCHES: tuple[EcoFlowSwitchDescription, ...] = (
         key="ups_mode",
         name="UPS Mode",
         icon="mdi:power-socket",
-        entity_registry_enabled_default=False,  # effect unconfirmed on D361
+        # openUpsFlag: firmware-controlled AC pass-through. Command accepted (ack=1)
+        # but flag is managed by firmware based on battery state + AC input.
+        # Not a user-toggleable switch in the EcoFlow app. Kept as diagnostic.
+        entity_registry_enabled_default=False,
         state_key=KEY_EMS_UPS_FLAG,
         cmd_module=MODULE_BMS,
         cmd_operate="upsConfig",
@@ -188,10 +194,10 @@ _D361_SWITCHES: tuple[EcoFlowSwitchDescription, ...] = (
         name="Bypass",
         icon="mdi:electric-switch",
         state_key=KEY_AC_BYPASS_PAUSE,
-        # inverted=False: pd.acAutoOutPause is always 0 on D361 — never pushed via telemetry.
-        # Switch will always show OFF. Command (bypassBan) does work — relay switches
-        # as confirmed by pd.relaySwitchCnt incrementing. State feedback unavailable.
-        entity_registry_enabled_default=False,  # ACK only — state unreliable on D361
+        # pd.acAutoOutPause is always 0 in D361 telemetry — state feedback unavailable.
+        # Command (bypassBan) works: relay switches as confirmed by relaySwitchCnt.
+        # Optimistic: update state immediately after SET command.
+        optimistic=True,
         cmd_module=MODULE_PD,
         cmd_operate="bypassBan",
         cmd_params=lambda on: {"banBypassEn": 0 if on else 1},
@@ -203,8 +209,9 @@ _D361_SWITCHES: tuple[EcoFlowSwitchDescription, ...] = (
         state_key=KEY_BEEP_MODE,
         cmd_module=MODULE_MPPT,
         cmd_operate="quietMode",
-        # inverted: beepState=1=sound ON; enabled=1=quiet ON=sound OFF
+        # beepState=1 means quiet mode ON (sound OFF) — inverted so switch shows ON when sound is ON
         cmd_params=lambda on: {"enabled": 0 if on else 1},
+        inverted=True,
         proto_builder=build_beep,
     ),
 
@@ -771,6 +778,14 @@ class EcoFlowSwitchEntity(CoordinatorEntity[EcoflowCoordinator], SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self.hass.async_add_executor_job(self._publish, True)
+        if self.entity_description.optimistic:
+            raw = 0 if self.entity_description.inverted else 1
+            self.coordinator.data[self.entity_description.state_key] = raw
+            self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.hass.async_add_executor_job(self._publish, False)
+        if self.entity_description.optimistic:
+            raw = 1 if self.entity_description.inverted else 0
+            self.coordinator.data[self.entity_description.state_key] = raw
+            self.async_write_ha_state()
