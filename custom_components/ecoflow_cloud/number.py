@@ -76,6 +76,8 @@ class EcoFlowNumberDescription(NumberEntityDescription):
     # v0.2.23: read_only=True means the entity is a sensor-like number —
     # state is shown but no SET command is sent (operateType unknown)
     read_only:      bool  = False
+    # dp3_cmd_key: if set, use Delta Pro 3 command envelope format
+    dp3_cmd_key:    str   = ""
 
 
 _D361_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
@@ -659,6 +661,8 @@ _PS_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
 # ── Description registry — keyed by device model ─────────────────────────────
 NUMBER_DESCRIPTIONS_BY_MODEL: dict[str, tuple[EcoFlowNumberDescription, ...]] = {
     "Delta 3 1500": _D361_NUMBERS,
+    "Delta 3 Plus": _D361_NUMBERS,
+    "Delta 3 Max": _D361_NUMBERS,
     "Delta 2": _D2_NUMBERS,
     "Delta 2 Max": _D2M_NUMBERS,
     "Delta Pro": _DPRO_NUMBERS,
@@ -703,6 +707,117 @@ _SP_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
 
 # ── Merged registry ──────────────────────────────────────────────────────────
 NUMBER_DESCRIPTIONS_BY_MODEL["Smart Plug"] = _SP_NUMBERS
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Delta Pro 3 (DGEA) — DP3 command envelope (cmdFunc=254, flat keys)
+# Source: EcoFlow Developer docs (deltaPro3)
+# ══════════════════════════════════════════════════════════════════════════════
+
+from .devices import delta_pro_3 as dp3_num
+
+_DP3_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
+    EcoFlowNumberDescription(
+        key="dp3_max_chg_soc", name="Max Charge SOC",
+        native_unit_of_measurement="%", native_min_value=50, native_max_value=100, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:battery-charging-high",
+        state_key=dp3_num.KEY_MAX_CHG_SOC,
+        dp3_cmd_key=dp3_num.CMD_MAX_CHG_SOC,
+    ),
+    EcoFlowNumberDescription(
+        key="dp3_min_dsg_soc", name="Min Discharge SOC",
+        native_unit_of_measurement="%", native_min_value=0, native_max_value=30, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:battery-charging-low",
+        state_key=dp3_num.KEY_MIN_DSG_SOC,
+        dp3_cmd_key=dp3_num.CMD_MIN_DSG_SOC,
+    ),
+    EcoFlowNumberDescription(
+        key="dp3_ac_standby", name="AC Standby Time",
+        native_unit_of_measurement="min", native_min_value=0, native_max_value=720, native_step=30,
+        mode=NumberMode.SLIDER, icon="mdi:timer-outline",
+        state_key=dp3_num.KEY_AC_STANDBY_TIME,
+        dp3_cmd_key=dp3_num.CMD_AC_STANDBY,
+    ),
+    EcoFlowNumberDescription(
+        key="dp3_dc_standby", name="DC Standby Time",
+        native_unit_of_measurement="min", native_min_value=0, native_max_value=720, native_step=30,
+        mode=NumberMode.SLIDER, icon="mdi:timer-outline",
+        state_key=dp3_num.KEY_DC_STANDBY_TIME,
+        dp3_cmd_key=dp3_num.CMD_DC_STANDBY,
+    ),
+    EcoFlowNumberDescription(
+        key="dp3_dev_standby", name="Device Standby Time",
+        native_unit_of_measurement="min", native_min_value=0, native_max_value=720, native_step=30,
+        mode=NumberMode.SLIDER, icon="mdi:timer-outline",
+        state_key=dp3_num.KEY_DEV_STANDBY_TIME,
+        dp3_cmd_key=dp3_num.CMD_DEV_STANDBY,
+        entity_registry_enabled_default=False,
+    ),
+    EcoFlowNumberDescription(
+        key="dp3_screen_off", name="Screen Off Time",
+        native_unit_of_measurement="s", native_min_value=0, native_max_value=300, native_step=10,
+        mode=NumberMode.SLIDER, icon="mdi:monitor-off",
+        state_key=dp3_num.KEY_SCREEN_OFF_TIME,
+        dp3_cmd_key=dp3_num.CMD_SCREEN_OFF,
+        entity_registry_enabled_default=False,
+    ),
+    EcoFlowNumberDescription(
+        key="dp3_lcd_brightness", name="LCD Brightness",
+        native_min_value=0, native_max_value=100, native_step=5,
+        mode=NumberMode.SLIDER, icon="mdi:brightness-6",
+        state_key=dp3_num.KEY_LCD_LIGHT,
+        dp3_cmd_key=dp3_num.CMD_LCD_LIGHT,
+        entity_registry_enabled_default=False,
+    ),
+    EcoFlowNumberDescription(
+        key="dp3_ac_chg_power", name="AC Charging Power",
+        native_unit_of_measurement="W", native_min_value=200, native_max_value=3000, native_step=100,
+        mode=NumberMode.SLIDER, icon="mdi:transmission-tower-import",
+        state_key=dp3_num.KEY_AC_CHG_POW_MAX,
+        dp3_cmd_key=dp3_num.CMD_AC_CHG_POW,
+    ),
+    EcoFlowNumberDescription(
+        key="dp3_pv_lv_amp", name="Solar LV Max Current",
+        native_unit_of_measurement="A", native_min_value=2, native_max_value=13, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:solar-power",
+        state_key=dp3_num.KEY_PV_LV_DC_AMP_MAX,
+        dp3_cmd_key=dp3_num.CMD_PV_LV_AMP,
+        entity_registry_enabled_default=False,
+    ),
+    EcoFlowNumberDescription(
+        key="dp3_pv_hv_amp", name="Solar HV Max Current",
+        native_unit_of_measurement="A", native_min_value=2, native_max_value=13, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:solar-power-variant",
+        state_key=dp3_num.KEY_PV_HV_DC_AMP_MAX,
+        dp3_cmd_key=dp3_num.CMD_PV_HV_AMP,
+        entity_registry_enabled_default=False,
+    ),
+    EcoFlowNumberDescription(
+        key="dp3_oil_on_soc", name="Generator Start SOC",
+        native_unit_of_measurement="%", native_min_value=0, native_max_value=50, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:gas-station",
+        state_key=dp3_num.KEY_OIL_ON_SOC,
+        dp3_cmd_key=dp3_num.CMD_OIL_ON_SOC,
+        entity_registry_enabled_default=False,
+    ),
+    EcoFlowNumberDescription(
+        key="dp3_oil_off_soc", name="Generator Stop SOC",
+        native_unit_of_measurement="%", native_min_value=50, native_max_value=100, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:gas-station-off",
+        state_key=dp3_num.KEY_OIL_OFF_SOC,
+        dp3_cmd_key=dp3_num.CMD_OIL_OFF_SOC,
+        entity_registry_enabled_default=False,
+    ),
+    EcoFlowNumberDescription(
+        key="dp3_ble_standby", name="Bluetooth Standby Time",
+        native_unit_of_measurement="min", native_min_value=0, native_max_value=720, native_step=30,
+        mode=NumberMode.SLIDER, icon="mdi:bluetooth",
+        state_key=dp3_num.KEY_BLE_STANDBY_TIME,
+        dp3_cmd_key=dp3_num.CMD_BLE_STANDBY,
+        entity_registry_enabled_default=False,
+    ),
+)
+
+NUMBER_DESCRIPTIONS_BY_MODEL["Delta Pro 3"] = _DP3_NUMBERS
 
 
 def _get_number_descriptions(model: str) -> tuple[EcoFlowNumberDescription, ...]:
@@ -835,6 +950,34 @@ class EcoFlowNumberEntity(CoordinatorEntity[EcoflowCoordinator], NumberEntity):
             )
             result = client.publish(topic, payload, qos=1)
             _LOGGER.debug("EcoFlow: Proto publish mid=%s rc=%s", result.mid, result.rc)
+            return
+
+        # Priority 2.5: Delta Pro 3 JSON envelope (cmdFunc=254, flat keys)
+        if desc.dp3_cmd_key:
+            client = self._entry_data.get("mqtt_client")
+            topic  = self._entry_data.get("mqtt_topic_set")
+            if not client or not topic:
+                _LOGGER.error("EcoFlow: no MQTT client — cannot send DP3 %s command", desc.key)
+                return
+            from .devices.delta_pro_3 import DP3_CMD_ID, DP3_CMD_FUNC, DP3_DEST, DP3_DIR_DEST, DP3_DIR_SRC
+            cmd = {
+                "sn":       self._sn,
+                "id":       _next_id(),
+                "version":  "1.0",
+                "cmdId":    DP3_CMD_ID,
+                "dirDest":  DP3_DIR_DEST,
+                "dirSrc":   DP3_DIR_SRC,
+                "cmdFunc":  DP3_CMD_FUNC,
+                "dest":     DP3_DEST,
+                "needAck":  True,
+                "params":   {desc.dp3_cmd_key: int(value)},
+            }
+            _LOGGER.info(
+                "EcoFlow: DP3 SET number %s value=%s topic=%s key=%s",
+                desc.key, value, topic, desc.dp3_cmd_key,
+            )
+            result = client.publish(topic, json.dumps(cmd), qos=1)
+            _LOGGER.debug("EcoFlow: DP3 publish mid=%s rc=%s", result.mid, result.rc)
             return
 
         # Priority 3: JSON MQTT SET
