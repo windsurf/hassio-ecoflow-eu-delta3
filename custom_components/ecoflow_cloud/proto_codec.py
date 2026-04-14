@@ -375,6 +375,250 @@ def sp_build_max_watts(watts: int, device_sn: str) -> bytes:
 
 
 # ---------------------------------------------------------------------------
+# Protobuf telemetry DECODER — parse binary MQTT push into coordinator data
+# ---------------------------------------------------------------------------
+#
+# EcoFlow protobuf telemetry structure (reverse-engineered):
+#
+#   PowerStream / Smart Plug use a header-wrapped format:
+#     root {
+#       field 1 (LEN) = header {
+#         field 1 (LEN)  = pdata (serialized heartbeat payload)
+#         field 2 (VAR)  = src        (32=APP, 2=device)
+#         field 3 (VAR)  = dest       (32=APP, 53=MQTT)
+#         field 8 (VAR)  = cmd_func   (20=PowerStream, 2=SmartPlug)
+#         field 9 (VAR)  = cmd_id     (1=heartbeat, 129..137=commands)
+#         ...
+#       }
+#     }
+#
+#   The pdata contains the actual sensor values as varint fields.
+#
+# Sources:
+#   - tolwi/hassio-ecoflow-cloud (proto/powerstream.proto, internal/smart_plug.py)
+#   - foxthefox/ioBroker.ecoflow-mqtt (protobuf decoding, field analysis)
+#   - moifort (GitHub issue #136, Smart Plug proto definition)
+#
+
+import logging as _logging
+
+_DECODE_LOGGER = _logging.getLogger(__name__)
+
+
+def _parse_fields(data: bytes) -> dict[int, int | bytes]:
+    """Parse protobuf wire-format into {field_num: value} dict.
+
+    Handles wire type 0 (varint) and wire type 2 (length-delimited).
+    For varint fields, value is int. For LEN fields, value is bytes.
+    Duplicate field numbers: last value wins (consistent with protobuf spec).
+    """
+    fields: dict[int, int | bytes] = {}
+    pos = 0
+    try:
+        while pos < len(data):
+            tag, pos = _read_varint(data, pos)
+            field_num = tag >> 3
+            wire_type = tag & 0x07
+            if wire_type == 0:  # varint
+                val, pos = _read_varint(data, pos)
+                fields[field_num] = val
+            elif wire_type == 2:  # length-delimited
+                length, pos = _read_varint(data, pos)
+                fields[field_num] = data[pos:pos + length]
+                pos += length
+            elif wire_type == 5:  # 32-bit fixed
+                fields[field_num] = int.from_bytes(data[pos:pos + 4], "little")
+                pos += 4
+            elif wire_type == 1:  # 64-bit fixed
+                fields[field_num] = int.from_bytes(data[pos:pos + 8], "little")
+                pos += 8
+            else:
+                break  # unknown wire type — stop parsing
+    except Exception:
+        pass  # partial parse is OK — return what we got
+    return fields
+
+
+def _extract_header(raw: bytes) -> dict[str, int | bytes] | None:
+    """Extract header fields from EcoFlow protobuf envelope.
+
+    Returns dict with keys: pdata, src, dest, cmd_func, cmd_id, data_len, seq.
+    Returns None if the envelope cannot be parsed.
+    """
+    root = _parse_fields(raw)
+    header_bytes = root.get(1)
+    if not isinstance(header_bytes, bytes):
+        return None
+
+    hdr = _parse_fields(header_bytes)
+    pdata = hdr.get(1)
+    if not isinstance(pdata, bytes):
+        return None
+
+    return {
+        "pdata":    pdata,
+        "src":      hdr.get(2, 0),
+        "dest":     hdr.get(3, 0),
+        "cmd_func": hdr.get(8, 0),
+        "cmd_id":   hdr.get(9, 0),
+        "data_len": hdr.get(10, 0),
+        "seq":      hdr.get(14, 0),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Field mappings: protobuf field number → coordinator key
+# ---------------------------------------------------------------------------
+# These map the varint field numbers inside the pdata (heartbeat payload)
+# to the flat key names used by coordinator.data and sensor.py descriptions.
+
+# PowerStream inverter_heartbeat (cmd_func=20, cmd_id=1)
+# Source: tolwi powerstream.proto, foxthefox inverter_heartbeat definition
+_PS_HEARTBEAT_FIELDS: dict[int, str] = {
+    1:  "20_1.pv1ErrCode",
+    2:  "20_1.pv1WarnCode",
+    3:  "20_1.pv1Status",
+    4:  "20_1.pv2ErrCode",
+    5:  "20_1.pv2WarningCode",
+    6:  "20_1.pv2Status",
+    7:  "20_1.batErrCode",
+    8:  "20_1.batWarningCode",
+    9:  "20_1.llcErrCode",
+    10: "20_1.llcWarningCode",
+    11: "20_1.pv1InputWatts",
+    12: "20_1.pv1OpVolt",
+    13: "20_1.pv1InputCur",
+    14: "20_1.pv1InputVolt",
+    15: "20_1.pv1Temp",
+    16: "20_1.pv1RelayStatus",
+    17: "20_1.pv2InputWatts",
+    18: "20_1.pv2OpVolt",
+    19: "20_1.pv2InputCur",
+    20: "20_1.pv2InputVolt",
+    21: "20_1.pv2Temp",
+    22: "20_1.pv2RelayStatus",
+    23: "20_1.batInputWatts",
+    24: "20_1.batInputVolt",
+    25: "20_1.batOpVolt",
+    26: "20_1.batInputCur",
+    27: "20_1.batTemp",
+    29: "20_1.batSoc",
+    30: "20_1.invOnOff",
+    31: "20_1.invOutputWatts",
+    32: "20_1.invOutputCur",
+    33: "20_1.invOutputVolt",
+    34: "20_1.invDcCur",
+    35: "20_1.invFreq",
+    36: "20_1.invTemp",
+    37: "20_1.invRelayStatus",
+    38: "20_1.invErrCode",
+    39: "20_1.invWarnCode",
+    40: "20_1.llcInputVolt",
+    41: "20_1.llcOpVolt",
+    42: "20_1.llcTemp",
+    43: "20_1.chgRemainTime",
+    44: "20_1.dsgRemainTime",
+    46: "20_1.bpType",
+    47: "20_1.invOpVolt",
+    48: "20_1.espTempsensor",
+    49: "20_1.ratedPower",
+    50: "20_1.dynamicWatts",
+    51: "20_1.supplyPriority",
+    52: "20_1.lowerLimit",
+    53: "20_1.upperLimit",
+    54: "20_1.invBrightness",
+    55: "20_1.heartbeatFrequency",
+    56: "20_1.wirelessErrCode",
+    57: "20_1.wirelessWarnCode",
+    58: "20_1.feedProtect",
+}
+
+# Smart Plug heartbeat (cmd_func=2, cmd_id=2 or 1)
+# Source: tolwi smartplug.proto (WnPlugHeartbeatPack), foxthefox plug data
+# Keys are flat (no prefix) — matching smart_plug.py device definition
+_SP_HEARTBEAT_FIELDS: dict[int, str] = {
+    1:  "watts",
+    2:  "volt",
+    3:  "current",
+    4:  "temp",
+    5:  "freq",
+    6:  "maxCur",
+    7:  "switchSta",
+    8:  "brightness",
+    9:  "maxWatts",
+    10: "errCode",
+    11: "warnCode",
+}
+
+# cmdFunc → field mapping table
+_HEARTBEAT_DECODERS: dict[int, dict[int, str]] = {
+    20: _PS_HEARTBEAT_FIELDS,   # PowerStream
+    2:  _SP_HEARTBEAT_FIELDS,   # Smart Plug
+}
+
+# cmdFunc → human-readable label for logging
+_CMD_FUNC_NAMES: dict[int, str] = {
+    20: "PowerStream",
+    2:  "SmartPlug",
+}
+
+
+def decode_proto_telemetry(raw: bytes) -> dict[str, int] | None:
+    """Decode a protobuf telemetry message into coordinator-compatible dict.
+
+    Returns {coordinator_key: value} for known heartbeat messages.
+    Returns None if the message is not a recognized heartbeat or cannot be parsed.
+    """
+    header = _extract_header(raw)
+    if header is None:
+        _DECODE_LOGGER.debug("proto decode: envelope parse failed")
+        return None
+
+    cmd_func = header["cmd_func"]
+    cmd_id = header["cmd_id"]
+    pdata = header["pdata"]
+    device_name = _CMD_FUNC_NAMES.get(cmd_func, f"unknown(func={cmd_func})")
+
+    field_map = _HEARTBEAT_DECODERS.get(cmd_func)
+    if field_map is None:
+        _DECODE_LOGGER.debug(
+            "proto decode: no decoder for cmd_func=%d cmd_id=%d (%s)",
+            cmd_func, cmd_id, device_name,
+        )
+        return None
+
+    # Parse the pdata (inner heartbeat payload)
+    pdata_fields = _parse_fields(pdata)
+
+    # Map field numbers to coordinator keys — only varint (int) values
+    result: dict[str, int] = {}
+    unmapped: list[int] = []
+    for field_num, value in pdata_fields.items():
+        if not isinstance(value, int):
+            continue  # skip nested LEN fields
+        key = field_map.get(field_num)
+        if key:
+            result[key] = value
+        else:
+            unmapped.append(field_num)
+
+    if result:
+        _DECODE_LOGGER.debug(
+            "proto decode OK: %s cmd_id=%d → %d keys mapped, %d unmapped %s",
+            device_name, cmd_id, len(result), len(unmapped),
+            unmapped[:10] if unmapped else "",
+        )
+    else:
+        _DECODE_LOGGER.debug(
+            "proto decode: %s cmd_id=%d — pdata has %d fields but none mapped",
+            device_name, cmd_id, len(pdata_fields),
+        )
+        return None
+
+    return result
+
+
+# ---------------------------------------------------------------------------
 # DEBUG helpers — decode received protobuf for analysis
 # ---------------------------------------------------------------------------
 
