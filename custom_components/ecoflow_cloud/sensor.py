@@ -145,6 +145,7 @@ from .devices import river1 as r1
 from .devices import powerstream as ps
 from .devices import glacier as gl
 from .devices import wave2 as w2
+from .devices import smart_plug as sp_dev
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -2567,32 +2568,32 @@ _RMINI_SENSORS: tuple[EcoFlowSensorDescription, ...] = tuple([
 # ══════════════════════════════════════════════════════════════════════════════
 
 _PS_SENSORS: tuple[EcoFlowSensorDescription, ...] = (
-    # Solar 1
-    EcoFlowSensorDescription(key=ps.KEY_PV1_W, name="Solar 1 Watts", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, round_digits=0),
-    EcoFlowSensorDescription(key=ps.KEY_PV1_IN_VOLT, name="Solar 1 Input Voltage", native_unit_of_measurement=UnitOfElectricPotential.MILLIVOLT, device_class=SensorDeviceClass.VOLTAGE, state_class=SensorStateClass.MEASUREMENT),
-    EcoFlowSensorDescription(key=ps.KEY_PV1_OP_VOLT, name="Solar 1 Op Voltage", native_unit_of_measurement=UnitOfElectricPotential.MILLIVOLT, device_class=SensorDeviceClass.VOLTAGE, state_class=SensorStateClass.MEASUREMENT),
-    EcoFlowSensorDescription(key=ps.KEY_PV1_CURR, name="Solar 1 Current", native_unit_of_measurement=UnitOfElectricCurrent.MILLIAMPERE, device_class=SensorDeviceClass.CURRENT, state_class=SensorStateClass.MEASUREMENT),
-    EcoFlowSensorDescription(key=ps.KEY_PV1_TEMP, name="Solar 1 Temperature", native_unit_of_measurement=UnitOfTemperature.CELSIUS, device_class=SensorDeviceClass.TEMPERATURE, state_class=SensorStateClass.MEASUREMENT, round_digits=1),
+    # Solar 1 (deciWatts, deciVolts, deciAmps, deciCelsius from protobuf)
+    EcoFlowSensorDescription(key=ps.KEY_PV1_W, name="Solar 1 Watts", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, scale=0.1, round_digits=0),
+    EcoFlowSensorDescription(key=ps.KEY_PV1_IN_VOLT, name="Solar 1 Input Voltage", native_unit_of_measurement=UnitOfElectricPotential.VOLT, device_class=SensorDeviceClass.VOLTAGE, state_class=SensorStateClass.MEASUREMENT, scale=0.1, round_digits=1),
+    EcoFlowSensorDescription(key=ps.KEY_PV1_OP_VOLT, name="Solar 1 Op Voltage", native_unit_of_measurement=UnitOfElectricPotential.VOLT, device_class=SensorDeviceClass.VOLTAGE, state_class=SensorStateClass.MEASUREMENT, scale=0.01, round_digits=2),
+    EcoFlowSensorDescription(key=ps.KEY_PV1_CURR, name="Solar 1 Current", native_unit_of_measurement=UnitOfElectricCurrent.AMPERE, device_class=SensorDeviceClass.CURRENT, state_class=SensorStateClass.MEASUREMENT, scale=0.1, round_digits=1),
+    EcoFlowSensorDescription(key=ps.KEY_PV1_TEMP, name="Solar 1 Temperature", native_unit_of_measurement=UnitOfTemperature.CELSIUS, device_class=SensorDeviceClass.TEMPERATURE, state_class=SensorStateClass.MEASUREMENT, scale=0.1, round_digits=1),
     # Solar 2
-    EcoFlowSensorDescription(key=ps.KEY_PV2_W, name="Solar 2 Watts", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, round_digits=0),
-    EcoFlowSensorDescription(key=ps.KEY_PV2_IN_VOLT, name="Solar 2 Input Voltage", native_unit_of_measurement=UnitOfElectricPotential.MILLIVOLT, device_class=SensorDeviceClass.VOLTAGE, state_class=SensorStateClass.MEASUREMENT),
-    EcoFlowSensorDescription(key=ps.KEY_PV2_OP_VOLT, name="Solar 2 Op Voltage", native_unit_of_measurement=UnitOfElectricPotential.MILLIVOLT, device_class=SensorDeviceClass.VOLTAGE, state_class=SensorStateClass.MEASUREMENT),
-    EcoFlowSensorDescription(key=ps.KEY_PV2_CURR, name="Solar 2 Current", native_unit_of_measurement=UnitOfElectricCurrent.MILLIAMPERE, device_class=SensorDeviceClass.CURRENT, state_class=SensorStateClass.MEASUREMENT),
-    EcoFlowSensorDescription(key=ps.KEY_PV2_TEMP, name="Solar 2 Temperature", native_unit_of_measurement=UnitOfTemperature.CELSIUS, device_class=SensorDeviceClass.TEMPERATURE, state_class=SensorStateClass.MEASUREMENT, round_digits=1),
+    EcoFlowSensorDescription(key=ps.KEY_PV2_W, name="Solar 2 Watts", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, scale=0.1, round_digits=0),
+    EcoFlowSensorDescription(key=ps.KEY_PV2_IN_VOLT, name="Solar 2 Input Voltage", native_unit_of_measurement=UnitOfElectricPotential.VOLT, device_class=SensorDeviceClass.VOLTAGE, state_class=SensorStateClass.MEASUREMENT, scale=0.1, round_digits=1),
+    EcoFlowSensorDescription(key=ps.KEY_PV2_OP_VOLT, name="Solar 2 Op Voltage", native_unit_of_measurement=UnitOfElectricPotential.VOLT, device_class=SensorDeviceClass.VOLTAGE, state_class=SensorStateClass.MEASUREMENT, scale=0.01, round_digits=2),
+    EcoFlowSensorDescription(key=ps.KEY_PV2_CURR, name="Solar 2 Current", native_unit_of_measurement=UnitOfElectricCurrent.AMPERE, device_class=SensorDeviceClass.CURRENT, state_class=SensorStateClass.MEASUREMENT, scale=0.1, round_digits=1),
+    EcoFlowSensorDescription(key=ps.KEY_PV2_TEMP, name="Solar 2 Temperature", native_unit_of_measurement=UnitOfTemperature.CELSIUS, device_class=SensorDeviceClass.TEMPERATURE, state_class=SensorStateClass.MEASUREMENT, scale=0.1, round_digits=1),
     # Battery
     EcoFlowSensorDescription(key=ps.KEY_BAT_SOC, name="Battery Charge", native_unit_of_measurement=PERCENTAGE, device_class=SensorDeviceClass.BATTERY, state_class=SensorStateClass.MEASUREMENT, round_digits=0),
-    EcoFlowSensorDescription(key=ps.KEY_BAT_W, name="Battery Input Watts", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, round_digits=0),
-    EcoFlowSensorDescription(key=ps.KEY_BAT_TEMP, name="Battery Temperature", native_unit_of_measurement=UnitOfTemperature.CELSIUS, device_class=SensorDeviceClass.TEMPERATURE, state_class=SensorStateClass.MEASUREMENT, round_digits=1),
+    EcoFlowSensorDescription(key=ps.KEY_BAT_W, name="Battery Input Watts", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, scale=0.1, round_digits=0),
+    EcoFlowSensorDescription(key=ps.KEY_BAT_TEMP, name="Battery Temperature", native_unit_of_measurement=UnitOfTemperature.CELSIUS, device_class=SensorDeviceClass.TEMPERATURE, state_class=SensorStateClass.MEASUREMENT, scale=0.1, round_digits=1),
     EcoFlowSensorDescription(key=ps.KEY_BAT_CHG_T, name="Charge Time", native_unit_of_measurement=UnitOfTime.MINUTES, device_class=SensorDeviceClass.DURATION, state_class=SensorStateClass.MEASUREMENT, round_digits=0),
     EcoFlowSensorDescription(key=ps.KEY_BAT_DSG_T, name="Discharge Time", native_unit_of_measurement=UnitOfTime.MINUTES, device_class=SensorDeviceClass.DURATION, state_class=SensorStateClass.MEASUREMENT, round_digits=0),
     # Inverter
-    EcoFlowSensorDescription(key=ps.KEY_INV_W, name="Inverter Output Watts", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, round_digits=0),
-    EcoFlowSensorDescription(key=ps.KEY_INV_FREQ, name="Inverter Frequency", native_unit_of_measurement=UnitOfFrequency.HERTZ, device_class=SensorDeviceClass.FREQUENCY, state_class=SensorStateClass.MEASUREMENT, round_digits=1),
-    EcoFlowSensorDescription(key=ps.KEY_INV_TEMP, name="Inverter Temperature", native_unit_of_measurement=UnitOfTemperature.CELSIUS, device_class=SensorDeviceClass.TEMPERATURE, state_class=SensorStateClass.MEASUREMENT, round_digits=1),
+    EcoFlowSensorDescription(key=ps.KEY_INV_W, name="Inverter Output Watts", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, scale=0.1, round_digits=0),
+    EcoFlowSensorDescription(key=ps.KEY_INV_FREQ, name="Inverter Frequency", native_unit_of_measurement=UnitOfFrequency.HERTZ, device_class=SensorDeviceClass.FREQUENCY, state_class=SensorStateClass.MEASUREMENT, scale=0.1, round_digits=1),
+    EcoFlowSensorDescription(key=ps.KEY_INV_TEMP, name="Inverter Temperature", native_unit_of_measurement=UnitOfTemperature.CELSIUS, device_class=SensorDeviceClass.TEMPERATURE, state_class=SensorStateClass.MEASUREMENT, scale=0.1, round_digits=1),
     # System
     EcoFlowSensorDescription(key=ps.KEY_ESP_TEMP, name="ESP Temperature", native_unit_of_measurement=UnitOfTemperature.CELSIUS, device_class=SensorDeviceClass.TEMPERATURE, state_class=SensorStateClass.MEASUREMENT, round_digits=1),
-    EcoFlowSensorDescription(key=ps.KEY_OTHER_LOADS, name="Other Loads", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, round_digits=0),
-    EcoFlowSensorDescription(key=ps.KEY_RATED_POWER, name="Rated Power", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, round_digits=0),
+    EcoFlowSensorDescription(key=ps.KEY_OTHER_LOADS, name="Other Loads", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, scale=0.1, round_digits=0),
+    EcoFlowSensorDescription(key=ps.KEY_RATED_POWER, name="Rated Power", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, scale=0.1, round_digits=0),
 )
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -2668,6 +2669,21 @@ SENSOR_DESCRIPTIONS_BY_MODEL: dict[str, tuple[EcoFlowSensorDescription, ...]] = 
     "Glacier": _GL_SENSORS,
     "Wave 2": _W2_SENSORS,
 }
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Smart Plug — 5 sensors (protobuf telemetry — requires decoder in on_message)
+# Keys are flat (no prefix), from WnPlugHeartbeatPack
+# ══════════════════════════════════════════════════════════════════════════════
+
+_SP_SENSORS: tuple[EcoFlowSensorDescription, ...] = (
+    EcoFlowSensorDescription(key=sp_dev.KEY_WATTS, name="Power", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, scale=0.1, round_digits=0),
+    EcoFlowSensorDescription(key=sp_dev.KEY_VOLT, name="Voltage", native_unit_of_measurement=UnitOfElectricPotential.VOLT, device_class=SensorDeviceClass.VOLTAGE, state_class=SensorStateClass.MEASUREMENT, scale=0.1, round_digits=1),
+    EcoFlowSensorDescription(key=sp_dev.KEY_CURRENT, name="Current", native_unit_of_measurement=UnitOfElectricCurrent.MILLIAMPERE, device_class=SensorDeviceClass.CURRENT, state_class=SensorStateClass.MEASUREMENT),
+    EcoFlowSensorDescription(key=sp_dev.KEY_TEMP, name="Temperature", native_unit_of_measurement=UnitOfTemperature.CELSIUS, device_class=SensorDeviceClass.TEMPERATURE, state_class=SensorStateClass.MEASUREMENT, round_digits=1),
+    EcoFlowSensorDescription(key=sp_dev.KEY_FREQ, name="Frequency", native_unit_of_measurement=UnitOfFrequency.HERTZ, device_class=SensorDeviceClass.FREQUENCY, state_class=SensorStateClass.MEASUREMENT, round_digits=1),
+)
+
+SENSOR_DESCRIPTIONS_BY_MODEL["Smart Plug"] = _SP_SENSORS
 
 
 def _get_sensor_descriptions(model: str) -> tuple[EcoFlowSensorDescription, ...]:
