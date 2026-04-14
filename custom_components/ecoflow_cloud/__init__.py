@@ -26,7 +26,7 @@ from .const import (
 from .api_client import EcoFlowAPI, EcoFlowPrivateAPI, EcoFlowAPIError
 from .coordinator import EcoflowCoordinator
 from .devices.registry import detect_model
-from .proto_codec import dump_fields
+from .proto_codec import dump_fields, decode_proto_telemetry
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER, Platform.SELECT, Platform.BUTTON]
@@ -234,7 +234,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "params": {"rtc": ts},
         })
         c.publish(topic_set, rtc, qos=1)
-        _LOGGER.info("EcoFlow: init sequence sent (latestQuotas + getBmsInfo + getAllTaskCfg + setRtcTime)")
+
+        # 5. v0.3.4: getOutputMemory — pd.outputMemoryEn is not in latestQuotas
+        # or regular telemetry push. This dedicated GET retrieves the current state
+        # so the Output Memory switch shows the correct value at startup.
+        output_mem = json.dumps({
+            "id": _next_id(), "version": "1.0",
+            "operateType": "getOutputMemory", "moduleType": 1, "params": {},
+        })
+        c.publish(topic_set, output_mem, qos=1)
+        _LOGGER.debug("EcoFlow: init getOutputMemory sent")
+
+        _LOGGER.info("EcoFlow: init sequence sent (latestQuotas + getBmsInfo + getAllTaskCfg + setRtcTime + getOutputMemory)")
 
     def on_connect(c, userdata, flags, rc):
         if rc == 0:
@@ -285,25 +296,37 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             msg.topic, len(raw_bytes),
         )
 
-        # ── Protobuf detection ────────────────────────────────────────────
-        # Delta 3 sends binary protobuf replies on topic_sub.
+        # ── Protobuf detection & decoding ─────────────────────────────────
+        # PowerStream and Smart Plug send binary protobuf telemetry on topic_sub.
+        # Delta 3 also sends binary protobuf replies (ack messages).
         # Bytes 0x0a / 0x12 are standard protobuf wire tags (field 1/2, LEN).
-        # Do not discard — log as hex for protocol analysis.
         if raw_bytes and raw_bytes[0] not in (0x7B, 0x5B):  # 0x7B='{', 0x5B='['
             is_proto = len(raw_bytes) >= 2 and raw_bytes[0] in (0x0a, 0x12)
             _LOGGER.debug(
-                "EcoFlow: MQTT binary payload topic=%s proto_likely=%s hex=%s",
-                msg.topic, is_proto, raw_bytes[:64].hex(),
+                "EcoFlow: MQTT binary payload topic=%s proto_likely=%s len=%d hex=%s",
+                msg.topic, is_proto, len(raw_bytes), raw_bytes[:64].hex(),
             )
             if is_proto:
-                _LOGGER.info(
-                    "EcoFlow: proto REPLY topic=%s len=%d hex=%s",
-                    msg.topic, len(raw_bytes), raw_bytes.hex(),
-                )
-                _LOGGER.debug(
-                    "EcoFlow: proto REPLY fields:\n%s",
-                    dump_fields(raw_bytes),
-                )
+                # v0.3.4: Try to decode protobuf telemetry into coordinator data
+                decoded = decode_proto_telemetry(raw_bytes)
+                if decoded:
+                    _LOGGER.info(
+                        "EcoFlow: proto telemetry decoded: %d keys → %s",
+                        len(decoded), sorted(decoded.keys())[:10],
+                    )
+                    hass.loop.call_soon_threadsafe(
+                        coordinator.update_from_mqtt, decoded
+                    )
+                else:
+                    # Not a recognized heartbeat — log for analysis (ack, command reply, etc.)
+                    _LOGGER.debug(
+                        "EcoFlow: proto message (not heartbeat) topic=%s len=%d hex=%s",
+                        msg.topic, len(raw_bytes), raw_bytes[:100].hex(),
+                    )
+                    _LOGGER.debug(
+                        "EcoFlow: proto fields:\n%s",
+                        dump_fields(raw_bytes),
+                    )
             else:
                 _LOGGER.warning(
                     "EcoFlow: MQTT unknown binary payload topic=%s hex=%s",
