@@ -138,6 +138,7 @@ from .devices.delta2_max import (
     KEY_SLV2_CYCLES, KEY_SLV2_INPUT_W, KEY_SLV2_OUTPUT_W,
 )
 from .devices import delta_pro as dp
+from .devices import delta_pro_3 as dp3
 from .devices import delta_max as dm
 from .devices import delta_mini as dmi
 from .devices import river2 as r2
@@ -2652,6 +2653,8 @@ _W2_SENSORS: tuple[EcoFlowSensorDescription, ...] = (
 # ── Description registry — keyed by device model ─────────────────────────────
 SENSOR_DESCRIPTIONS_BY_MODEL: dict[str, tuple[EcoFlowSensorDescription, ...]] = {
     "Delta 3 1500": _D361_SENSORS,
+    "Delta 3 Plus": _D361_SENSORS,
+    "Delta 3 Max": _D361_SENSORS,
     "Delta 2": _D2_SENSORS,
     "Delta 2 Max": _D2M_SENSORS,
     "Delta Pro": _DPRO_SENSORS,
@@ -2684,6 +2687,34 @@ _SP_SENSORS: tuple[EcoFlowSensorDescription, ...] = (
 )
 
 SENSOR_DESCRIPTIONS_BY_MODEL["Smart Plug"] = _SP_SENSORS
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Delta Pro 3 (DGEA) — sensors with flat keys (no module prefix)
+# Source: EcoFlow Developer docs (deltaPro3), GetCmdResponse quota keys
+# NOTE: DP3 uses flat keys unlike D361's dotted keys (pd.soc, mppt.*)
+# Sensor data arrives via MQTT latestQuotas or telemetry push with flat keys.
+# Additional sensors will be added when live telemetry dumps are available.
+# ══════════════════════════════════════════════════════════════════════════════
+
+_DP3_SENSORS: tuple[EcoFlowSensorDescription, ...] = (
+    # Settings readback (these double as sensors to show current config values)
+    EcoFlowSensorDescription(key=dp3.KEY_MAX_CHG_SOC, name="Max Charge SOC", native_unit_of_measurement=PERCENTAGE, icon="mdi:battery-charging-high", state_class=SensorStateClass.MEASUREMENT, round_digits=0),
+    EcoFlowSensorDescription(key=dp3.KEY_MIN_DSG_SOC, name="Min Discharge SOC", native_unit_of_measurement=PERCENTAGE, icon="mdi:battery-charging-low", state_class=SensorStateClass.MEASUREMENT, round_digits=0),
+    EcoFlowSensorDescription(key=dp3.KEY_AC_STANDBY_TIME, name="AC Standby Time", native_unit_of_measurement=UnitOfTime.MINUTES, icon="mdi:timer-outline", state_class=SensorStateClass.MEASUREMENT, round_digits=0, entity_registry_enabled_default=False),
+    EcoFlowSensorDescription(key=dp3.KEY_DC_STANDBY_TIME, name="DC Standby Time", native_unit_of_measurement=UnitOfTime.MINUTES, icon="mdi:timer-outline", state_class=SensorStateClass.MEASUREMENT, round_digits=0, entity_registry_enabled_default=False),
+    EcoFlowSensorDescription(key=dp3.KEY_DEV_STANDBY_TIME, name="Device Standby Time", native_unit_of_measurement=UnitOfTime.MINUTES, icon="mdi:timer-outline", state_class=SensorStateClass.MEASUREMENT, round_digits=0, entity_registry_enabled_default=False),
+    EcoFlowSensorDescription(key=dp3.KEY_LCD_LIGHT, name="LCD Brightness", icon="mdi:brightness-6", state_class=SensorStateClass.MEASUREMENT, round_digits=0, entity_registry_enabled_default=False),
+    EcoFlowSensorDescription(key=dp3.KEY_AC_OUT_FREQ, name="AC Output Frequency", native_unit_of_measurement=UnitOfFrequency.HERTZ, device_class=SensorDeviceClass.FREQUENCY, state_class=SensorStateClass.MEASUREMENT, round_digits=0, entity_registry_enabled_default=False),
+    EcoFlowSensorDescription(key=dp3.KEY_AC_CHG_POW_MAX, name="AC Max Charging Power", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, round_digits=0),
+    EcoFlowSensorDescription(key=dp3.KEY_PV_LV_DC_AMP_MAX, name="Solar LV Max Current", native_unit_of_measurement=UnitOfElectricCurrent.AMPERE, device_class=SensorDeviceClass.CURRENT, state_class=SensorStateClass.MEASUREMENT, round_digits=0, entity_registry_enabled_default=False),
+    EcoFlowSensorDescription(key=dp3.KEY_PV_HV_DC_AMP_MAX, name="Solar HV Max Current", native_unit_of_measurement=UnitOfElectricCurrent.AMPERE, device_class=SensorDeviceClass.CURRENT, state_class=SensorStateClass.MEASUREMENT, round_digits=0, entity_registry_enabled_default=False),
+    EcoFlowSensorDescription(key=dp3.KEY_ENERGY_BACKUP_SOC, name="Energy Backup Start SOC", native_unit_of_measurement=PERCENTAGE, icon="mdi:battery-heart-outline", state_class=SensorStateClass.MEASUREMENT, round_digits=0, entity_registry_enabled_default=False),
+    EcoFlowSensorDescription(key=dp3.KEY_OIL_ON_SOC, name="Generator Start SOC", native_unit_of_measurement=PERCENTAGE, icon="mdi:gas-station", state_class=SensorStateClass.MEASUREMENT, round_digits=0, entity_registry_enabled_default=False),
+    EcoFlowSensorDescription(key=dp3.KEY_OIL_OFF_SOC, name="Generator Stop SOC", native_unit_of_measurement=PERCENTAGE, icon="mdi:gas-station-off", state_class=SensorStateClass.MEASUREMENT, round_digits=0, entity_registry_enabled_default=False),
+    EcoFlowSensorDescription(key=dp3.KEY_MULTI_BP_MODE, name="Multi Battery Mode", icon="mdi:battery-sync", state_class=SensorStateClass.MEASUREMENT, round_digits=0, entity_registry_enabled_default=False),
+)
+
+SENSOR_DESCRIPTIONS_BY_MODEL["Delta Pro 3"] = _DP3_SENSORS
 
 
 def _get_sensor_descriptions(model: str) -> tuple[EcoFlowSensorDescription, ...]:
