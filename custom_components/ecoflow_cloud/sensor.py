@@ -2752,6 +2752,9 @@ class EcoFlowSensorEntity(CoordinatorEntity[EcoflowCoordinator], SensorEntity):
         if val is None:
             return None
         try:
+            # Handle comma-decimal strings (e.g. bms_slave.diffSoc = "1,11")
+            if isinstance(val, str) and "," in val:
+                val = val.replace(",", ".")
             scaled = float(val) * self.entity_description.scale
             r = self.entity_description.round_digits
             return round(scaled, r) if r is not None else scaled
