@@ -44,6 +44,7 @@ from .proto_codec import (
 from .devices import glacier as gl
 from .devices import powerstream as ps
 from .devices import smart_plug as sp
+from .devices import delta_pro_3 as dp3
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -69,6 +70,9 @@ class EcoFlowSwitchDescription(SwitchEntityDescription):
     # Use when the device does not push state feedback via telemetry
     optimistic:   bool                       = False
     entity_registry_enabled_default: bool = True
+    # dp3_cmd_key: if set, use Delta Pro 3 command envelope format
+    # {sn, cmdId:17, cmdFunc:254, dest:2, dirDest:1, dirSrc:1, needAck:true, params:{dp3_cmd_key: value}}
+    dp3_cmd_key:  str                        = ""
 
 
 
@@ -220,7 +224,8 @@ _D361_SWITCHES: tuple[EcoFlowSwitchDescription, ...] = (
         key="output_memory",
         name="Output Memory",
         icon="mdi:memory",
-        entity_registry_enabled_default=False,  # ACK only — no telemetry feedback on D361; state unknown
+        entity_registry_enabled_default=True,   # v0.3.4: state from getOutputMemory at startup
+        optimistic=True,                         # v0.3.4: immediate feedback after toggle (telemetry may not push this key)
         state_key=KEY_OUTPUT_MEMORY,
         cmd_module=MODULE_PD,
         cmd_operate="outputMemory",
@@ -610,8 +615,78 @@ _SP_SWITCHES: tuple[EcoFlowSwitchDescription, ...] = (
 )
 
 # ── Description registry — keyed by device model ─────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# Delta Pro 3 (DGEA) — DP3 command envelope (cmdFunc=254, flat keys)
+# Source: EcoFlow Developer docs (deltaPro3)
+# ══════════════════════════════════════════════════════════════════════════════
+
+_DP3_SWITCHES: tuple[EcoFlowSwitchDescription, ...] = (
+    EcoFlowSwitchDescription(
+        key="dp3_beep", name="Beep Sound", icon="mdi:volume-high",
+        state_key=dp3.KEY_BEEP,
+        dp3_cmd_key=dp3.CMD_BEEP,
+        optimistic=True,
+    ),
+    EcoFlowSwitchDescription(
+        key="dp3_xboost", name="X-Boost", icon="mdi:lightning-bolt",
+        state_key=dp3.KEY_XBOOST,
+        dp3_cmd_key=dp3.CMD_XBOOST,
+        optimistic=True,
+    ),
+    EcoFlowSwitchDescription(
+        key="dp3_ac_hv_out", name="AC HV Output (240V)", icon="mdi:power-socket-us",
+        state_key=dp3.KEY_AC_HV_OUT,
+        dp3_cmd_key=dp3.CMD_AC_HV_OUT,
+        optimistic=True,
+    ),
+    EcoFlowSwitchDescription(
+        key="dp3_ac_lv_out", name="AC LV Output (120V)", icon="mdi:power-socket-eu",
+        state_key=dp3.KEY_AC_LV_OUT,
+        dp3_cmd_key=dp3.CMD_AC_LV_OUT,
+        optimistic=True,
+    ),
+    EcoFlowSwitchDescription(
+        key="dp3_dc_12v", name="DC 12V Output", icon="mdi:car-battery",
+        state_key=dp3.KEY_DC_12V_OUT,
+        dp3_cmd_key=dp3.CMD_DC_12V_OUT,
+        optimistic=True,
+    ),
+    EcoFlowSwitchDescription(
+        key="dp3_energy_backup", name="Energy Backup", icon="mdi:battery-heart",
+        state_key=dp3.KEY_ENERGY_BACKUP_EN,
+        dp3_cmd_key=dp3.CMD_ENERGY_BACKUP,
+        # nested params: {cfgEnergyBackup: {energyBackupStartSoc: current, energyBackupEn: bool}}
+        # simplified to just the enable flag for now — nested requires custom cmd_params
+        optimistic=True,
+        entity_registry_enabled_default=False,
+    ),
+    EcoFlowSwitchDescription(
+        key="dp3_oil_self_start", name="Generator Auto-Start", icon="mdi:gas-station",
+        state_key=dp3.KEY_OIL_SELF_START,
+        dp3_cmd_key=dp3.CMD_OIL_SELF_START,
+        optimistic=True,
+        entity_registry_enabled_default=False,
+    ),
+    EcoFlowSwitchDescription(
+        key="dp3_gfci", name="GFCI Protection", icon="mdi:shield-check",
+        state_key=dp3.KEY_GFCI_FLAG,
+        dp3_cmd_key=dp3.CMD_GFCI_FLAG,
+        optimistic=True,
+        entity_registry_enabled_default=False,
+    ),
+    EcoFlowSwitchDescription(
+        key="dp3_ac_energy_saving", name="AC Energy Saving", icon="mdi:leaf",
+        state_key=dp3.KEY_AC_ENERGY_SAVING,
+        dp3_cmd_key=dp3.CMD_AC_ENERGY_SAVING,
+        optimistic=True,
+        entity_registry_enabled_default=False,
+    ),
+)
+
 SWITCH_DESCRIPTIONS_BY_MODEL: dict[str, tuple[EcoFlowSwitchDescription, ...]] = {
     "Delta 3 1500": _D361_SWITCHES,
+    "Delta 3 Plus": _D361_SWITCHES,
+    "Delta 3 Max": _D361_SWITCHES,
     "Delta 2": _D2_SWITCHES,
     "Delta 2 Max": _D2M_SWITCHES,
     "Delta Pro": _DPRO_SWITCHES,
@@ -629,6 +704,7 @@ SWITCH_DESCRIPTIONS_BY_MODEL: dict[str, tuple[EcoFlowSwitchDescription, ...]] = 
     "Glacier": _GL_SWITCHES,
     "Wave 2": (),  # no switches (tolwi confirms empty)
     "Smart Plug": _SP_SWITCHES,
+    "Delta Pro 3": _DP3_SWITCHES,
 }
 
 
@@ -734,6 +810,35 @@ class EcoFlowSwitchEntity(CoordinatorEntity[EcoflowCoordinator], SwitchEntity):
             )
             result = client.publish(topic, payload, qos=1)
             _LOGGER.debug("EcoFlow: Proto publish mid=%s rc=%s", result.mid, result.rc)
+            return
+
+        # Priority 2.5: Delta Pro 3 JSON envelope (cmdFunc=254, flat keys)
+        if desc.dp3_cmd_key:
+            client = self._entry_data.get("mqtt_client")
+            topic  = self._entry_data.get("mqtt_topic_set")
+            if not client or not topic:
+                _LOGGER.error("EcoFlow: no MQTT client — cannot send DP3 %s command", desc.key)
+                return
+            from .devices.delta_pro_3 import DP3_CMD_ID, DP3_CMD_FUNC, DP3_DEST, DP3_DIR_DEST, DP3_DIR_SRC
+            value = desc.cmd_params(turn_on) if desc.cmd_params else (True if turn_on else False)
+            cmd = {
+                "sn":       self._sn,
+                "id":       _next_id(),
+                "version":  "1.0",
+                "cmdId":    DP3_CMD_ID,
+                "dirDest":  DP3_DIR_DEST,
+                "dirSrc":   DP3_DIR_SRC,
+                "cmdFunc":  DP3_CMD_FUNC,
+                "dest":     DP3_DEST,
+                "needAck":  True,
+                "params":   {desc.dp3_cmd_key: value},
+            }
+            _LOGGER.info(
+                "EcoFlow: DP3 SET %s turn_on=%s topic=%s key=%s value=%s",
+                desc.key, turn_on, topic, desc.dp3_cmd_key, value,
+            )
+            result = client.publish(topic, json.dumps(cmd), qos=1)
+            _LOGGER.debug("EcoFlow: DP3 publish mid=%s rc=%s", result.mid, result.rc)
             return
 
         # Priority 3: JSON MQTT SET
