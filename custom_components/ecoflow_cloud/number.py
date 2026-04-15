@@ -78,6 +78,9 @@ class EcoFlowNumberDescription(NumberEntityDescription):
     read_only:      bool  = False
     # dp3_cmd_key: if set, use Delta Pro 3 command envelope format
     dp3_cmd_key:    str   = ""
+    # dpu_cmd_code: if set, use Delta Pro Ultra cmdCode format
+    dpu_cmd_code:     str = ""
+    dpu_cmd_param_key: str = ""   # param key in the cmdCode params dict
 
 
 _D361_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
@@ -819,6 +822,103 @@ _DP3_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
 
 NUMBER_DESCRIPTIONS_BY_MODEL["Delta Pro 3"] = _DP3_NUMBERS
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Delta Pro Ultra (DGEB) — cmdCode protocol (YJ751_PD_*)
+# Source: EcoFlow Developer docs (deltaProUltra), 14 April 2026, 18 pages
+# ══════════════════════════════════════════════════════════════════════════════
+
+from .devices import delta_pro_ultra as dpu_num
+
+_DPU_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
+    EcoFlowNumberDescription(
+        key="dpu_max_chg_soc", name="Max Charge SOC",
+        native_unit_of_measurement="%", native_min_value=50, native_max_value=100, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:battery-charging-high",
+        state_key=dpu_num.KEY_CHG_MAX_SOC,
+        dpu_cmd_code=dpu_num.CMD_CHG_SOC_MAX,
+        dpu_cmd_param_key=dpu_num.PARAM_MAX_CHG_SOC,
+    ),
+    EcoFlowNumberDescription(
+        key="dpu_min_dsg_soc", name="Min Discharge SOC",
+        native_unit_of_measurement="%", native_min_value=0, native_max_value=30, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:battery-charging-low",
+        state_key=dpu_num.KEY_DSG_MIN_SOC,
+        dpu_cmd_code=dpu_num.CMD_DSG_SOC_MIN,
+        dpu_cmd_param_key=dpu_num.PARAM_MIN_DSG_SOC,
+    ),
+    EcoFlowNumberDescription(
+        key="dpu_power_standby", name="Device Standby Time",
+        native_unit_of_measurement="min", native_min_value=0, native_max_value=720, native_step=30,
+        mode=NumberMode.SLIDER, icon="mdi:timer-outline",
+        state_key=dpu_num.KEY_POWER_STANDBY,
+        dpu_cmd_code=dpu_num.CMD_POWER_STANDBY,
+        dpu_cmd_param_key=dpu_num.PARAM_POWER_STANDBY,
+    ),
+    EcoFlowNumberDescription(
+        key="dpu_screen_standby", name="Screen Standby Time",
+        native_unit_of_measurement="s", native_min_value=0, native_max_value=600, native_step=30,
+        mode=NumberMode.SLIDER, icon="mdi:monitor-off",
+        state_key=dpu_num.KEY_SCREEN_STANDBY,
+        dpu_cmd_code=dpu_num.CMD_SCREEN_STANDBY,
+        dpu_cmd_param_key=dpu_num.PARAM_SCREEN_STANDBY,
+        entity_registry_enabled_default=False,
+    ),
+    EcoFlowNumberDescription(
+        key="dpu_ac_standby", name="AC Standby Time",
+        native_unit_of_measurement="min", native_min_value=0, native_max_value=720, native_step=30,
+        mode=NumberMode.SLIDER, icon="mdi:timer-outline",
+        state_key=dpu_num.KEY_AC_STANDBY,
+        dpu_cmd_code=dpu_num.CMD_AC_STANDBY,
+        dpu_cmd_param_key=dpu_num.PARAM_AC_STANDBY,
+    ),
+    EcoFlowNumberDescription(
+        key="dpu_dc_standby", name="DC Standby Time",
+        native_unit_of_measurement="min", native_min_value=0, native_max_value=720, native_step=30,
+        mode=NumberMode.SLIDER, icon="mdi:timer-outline",
+        state_key=dpu_num.KEY_DC_STANDBY,
+        dpu_cmd_code=dpu_num.CMD_DC_STANDBY,
+        dpu_cmd_param_key=dpu_num.PARAM_DC_STANDBY,
+        entity_registry_enabled_default=False,
+    ),
+    EcoFlowNumberDescription(
+        key="dpu_chg_c20_watts", name="AC Charging Power",
+        native_unit_of_measurement="W", native_min_value=200, native_max_value=3000, native_step=100,
+        mode=NumberMode.SLIDER, icon="mdi:transmission-tower-import",
+        state_key=dpu_num.KEY_CHG_C20_SET,
+        dpu_cmd_code=dpu_num.CMD_AC_CHG,
+        dpu_cmd_param_key=dpu_num.PARAM_CHG_C20_WATTS,
+    ),
+    EcoFlowNumberDescription(
+        key="dpu_chg_5p8_watts", name="POWER IN/OUT Charging Power",
+        native_unit_of_measurement="W", native_min_value=200, native_max_value=3900, native_step=100,
+        mode=NumberMode.SLIDER, icon="mdi:transmission-tower-import",
+        state_key=dpu_num.KEY_CHG_5P8_SET,
+        dpu_cmd_code=dpu_num.CMD_AC_CHG,
+        dpu_cmd_param_key=dpu_num.PARAM_CHG_5P8_WATTS,
+        entity_registry_enabled_default=False,
+    ),
+    EcoFlowNumberDescription(
+        key="dpu_ac_often_min_soc", name="AC Always-On Min SOC",
+        native_unit_of_measurement="%", native_min_value=0, native_max_value=100, native_step=5,
+        mode=NumberMode.SLIDER, icon="mdi:battery-lock",
+        state_key=dpu_num.KEY_AC_OFTEN_MIN_SOC,
+        dpu_cmd_code=dpu_num.CMD_AC_OFTEN_OPEN,
+        dpu_cmd_param_key="acOftenOpenMinSoc",
+        entity_registry_enabled_default=False,
+    ),
+    EcoFlowNumberDescription(
+        key="dpu_backup_soc", name="Backup Reserve SOC",
+        native_unit_of_measurement="%", native_min_value=5, native_max_value=100, native_step=5,
+        mode=NumberMode.SLIDER, icon="mdi:battery-heart",
+        state_key=dpu_num.KEY_SYS_BACKUP_SOC,
+        # No dedicated SET cmdCode in docs — read-only for now
+        read_only=True,
+        entity_registry_enabled_default=False,
+    ),
+)
+
+NUMBER_DESCRIPTIONS_BY_MODEL["Delta Pro Ultra"] = _DPU_NUMBERS
+
 
 def _get_number_descriptions(model: str) -> tuple[EcoFlowNumberDescription, ...]:
     """Get number descriptions for a device model. Falls back to empty tuple."""
@@ -978,6 +1078,46 @@ class EcoFlowNumberEntity(CoordinatorEntity[EcoflowCoordinator], NumberEntity):
             )
             result = client.publish(topic, json.dumps(cmd), qos=1)
             _LOGGER.debug("EcoFlow: DP3 publish mid=%s rc=%s", result.mid, result.rc)
+            return
+
+        # Priority 2.6: Delta Pro Ultra cmdCode format
+        if desc.dpu_cmd_code:
+            dpu_params = {desc.dpu_cmd_param_key: int(value)} if desc.dpu_cmd_param_key else params
+
+            # Priority 2.6a: REST API SET with cmdCode
+            rest_api = self._entry_data.get("rest_api")
+            if rest_api is not None and hasattr(rest_api, 'set_quota_cmdcode'):
+                try:
+                    rest_api.set_quota_cmdcode(desc.dpu_cmd_code, dpu_params)
+                    _LOGGER.info(
+                        "EcoFlow: DPU REST SET number %s value=%s cmdCode=%s params=%s",
+                        desc.key, value, desc.dpu_cmd_code, dpu_params,
+                    )
+                    return
+                except Exception as exc:
+                    _LOGGER.debug(
+                        "EcoFlow: DPU REST SET number %s failed (%s) — falling back to MQTT",
+                        desc.key, exc,
+                    )
+
+            # Priority 2.6b: MQTT SET with cmdCode
+            client = self._entry_data.get("mqtt_client")
+            topic  = self._entry_data.get("mqtt_topic_set")
+            if not client or not topic:
+                _LOGGER.error("EcoFlow: no MQTT client — cannot send DPU %s command", desc.key)
+                return
+            cmd = {
+                "id":       _next_id(),
+                "version":  "1.0",
+                "cmdCode":  desc.dpu_cmd_code,
+                "params":   dpu_params,
+            }
+            _LOGGER.info(
+                "EcoFlow: DPU SET number %s value=%s topic=%s cmdCode=%s",
+                desc.key, value, topic, desc.dpu_cmd_code,
+            )
+            result = client.publish(topic, json.dumps(cmd), qos=1)
+            _LOGGER.debug("EcoFlow: DPU publish mid=%s rc=%s", result.mid, result.rc)
             return
 
         # Priority 3: JSON MQTT SET
