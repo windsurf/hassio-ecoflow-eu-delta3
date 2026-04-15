@@ -230,7 +230,7 @@ KEY_PD_USBQC_TIME   = "pd.usbqcUsedTime"               # USB QC use time        
 KEY_PD_WIFI_RCV     = "pd.wifiAutoRcvy"                # WiFi auto recovery mode
 
 # ── Slave battery (bms_slave) — v0.2.25 ───────────────────────────────────────
-# P361Z1H4PGBR0251 slave confirmed present via MQTT telemetry (April 2026)
+# Slave battery confirmed present via MQTT telemetry (April 2026)
 # Keys mirror bms_bmsStatus structure; units/scale identical to main battery.
 KEY_SLV_SOC         = "bms_slave.soc"                  # Slave SOC                 (%)
 KEY_SLV_SOC_FLOAT   = "bms_slave.f32ShowSoc"           # Slave SOC float (precise) (%)
