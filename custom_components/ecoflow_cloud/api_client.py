@@ -216,6 +216,34 @@ class EcoFlowAPI:
         )
         return self._put(PATH_QUOTA_SET, body)
 
+    def set_quota_cmdcode(self, cmd_code: str, params: dict) -> dict:
+        """Send a cmdCode-based SET command via REST API PUT.
+
+        This is the control path for Delta Pro Ultra (DGEB) devices.
+        DPU uses cmdCode strings (YJ751_PD_*) instead of moduleType/operateType.
+
+        Args:
+            cmd_code: Command code string (e.g. "YJ751_PD_AC_DSG_SET")
+            params: Command parameters (e.g. {"enable": 1, "xboost": 1, "outFreq": 50})
+
+        Returns:
+            Response data dict (usually empty on success)
+
+        Raises:
+            EcoFlowAPIError: On signing failure (8521), device offline (1006),
+                             or other API errors.
+        """
+        body = {
+            "sn":       self._sn,
+            "cmdCode":  cmd_code,
+            "params":   params,
+        }
+        _LOGGER.info(
+            "EcoFlow REST SET cmdCode: sn=%s cmdCode=%s params=%s",
+            self._sn, cmd_code, params,
+        )
+        return self._put(PATH_QUOTA_SET, body)
+
     @property
     def rest_quota_unavailable(self) -> bool:
         return getattr(self, "_rest_quota_unavailable", False)
@@ -445,3 +473,15 @@ class EcoFlowPrivateAPI:
                 "Add Developer API credentials in integration options."
             )
         return self._developer_api.set_quota(module_type, operate_type, params)
+
+    def set_quota_cmdcode(self, cmd_code: str, params: dict) -> dict:
+        """Send cmdCode-based SET via Developer API (if attached).
+
+        Used by Delta Pro Ultra (DGEB) devices.
+        """
+        if self._developer_api is None:
+            raise EcoFlowAPIError(
+                "No Developer API configured — cannot send REST SET cmdCode. "
+                "Add Developer API credentials in integration options."
+            )
+        return self._developer_api.set_quota_cmdcode(cmd_code, params)
