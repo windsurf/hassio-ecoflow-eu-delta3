@@ -329,7 +329,75 @@ logger:
 
 ---
 
+## Device Support (v0.3.6)
+
+| Device | SN Prefix | Protocol | Sensors | Switches | Numbers | Selects | Status |
+|--------|-----------|----------|---------|----------|---------|---------|--------|
+| Delta 3 1500 | D361 | JSON SET | ~80 | 13 | 9 | 5 | ✅ Live tested |
+| Delta 3 Plus | D362 | JSON SET | ~80 | 13 | 9 | 5 | ✅ Profile |
+| Delta 3 Max | D381 | JSON SET | ~80 | 13 | 9 | 5 | ✅ Profile |
+| Delta Pro 3 | DGEA | Gen 3 cmdFunc=254 | 14 | 9 | 13 | — | ✅ Full control |
+| **Delta Pro Ultra** | **DGEB** | **cmdCode YJ751** | **45** | **7** | **10** | **1** | **✅ New in v0.3.6** |
+| Delta Pro | DAEB | Gen 1 TCP | ~40 | 4 | 4 | 3 | ✅ Full control |
+| Delta 2 | R331 | Gen 2 moduleType | ~50 | 8 | 6 | 5 | ✅ Full control |
+| Delta 2 Max | R351 | Gen 2 moduleType | ~50 | 7 | 6 | 4 | ✅ Full control |
+| Delta Max | DCAB | Gen 1 TCP | ~30 | 4 | 4 | — | ✅ Full control |
+| Delta Mini | DAAZ | Gen 1 TCP | ~18 | 1 | 2 | 3 | ✅ Full control |
+| River 2 | R621 | Gen 2 moduleType | ~30 | 3 | 3 | 3 | ✅ Full control |
+| River 2 Max | R631 | Gen 2 moduleType | ~30 | 3 | 3 | 3 | ✅ Full control |
+| River 2 Pro | R622 | Gen 2 moduleType | ~30 | 3 | 3 | 3 | ✅ Full control |
+| River Max | R601 | Gen 1 TCP | ~28 | 2 | 2 | 2 | ✅ Full control |
+| River Pro | R602 | Gen 1 TCP | ~32 | 2 | 2 | 2 | ✅ Full control |
+| River Mini | R501 | Gen 1 TCP | ~17 | — | — | — | ✅ Sensors only |
+| PowerStream | HW51/52/BKW | Protobuf | ~25 | 1 | 4 | 1 | ✅ Full control |
+| Smart Plug | SP10 | Protobuf | ~8 | 1 | 2 | — | ✅ Full control |
+| Glacier | BX11 | Gen 2 moduleType | ~20 | 3 | 3 | — | ✅ Full control |
+| Wave 2 | KT21 | Gen 2 moduleType | ~15 | — | 1 | 4 | ✅ Full control |
+
+**20 devices**, 5 protocol variants: Gen 1 (TCP), Gen 2 (moduleType), Gen 3 (cmdFunc=254), Protobuf, cmdCode (YJ751).
+
+---
+
 ## Changelog
+
+### v0.3.6 -- Delta Pro Ultra full implementation (cmdCode protocol)
+
+**New device: Delta Pro Ultra (DGEB) — fully implemented:**
+- New cmdCode protocol: `YJ751_PD_*` command codes instead of moduleType/operateType
+- New prefixed quota keys: `hs_yj751_pd_appshow_addr.*`, `hs_yj751_pd_app_set_info_addr.*`, `hs_yj751_pd_backend_addr.*`
+- 12 SET commands implemented via REST PUT and MQTT
+- ~45 sensors: SOC, total power in/out, per-port AC power (6 ports), DC/USB/Type-C, solar HV/LV, V/A per port
+- 6 switches: AC Output, X-Boost, DC Output, Battery Heating, 4G, AC Always-On + Energy Management (read-only)
+- 8 numbers: Max/Min SOC, AC/DC/Device standby, Screen standby, AC charging power, POWER IN/OUT charging power + AC Always-On Min SOC, Backup Reserve SOC
+- Source: official EcoFlow developer docs (developer-eu.ecoflow.com/us/document/deltaProUltra)
+
+**DPU showFlag bit field parsing:**
+- AC Output reads bit 2, DC Output reads bit 5 from showFlag integer
+- New `show_flag_bit` field on SwitchDescription for bit extraction in `is_on`
+
+**Additional DPU entities:**
+- Energy Management switch (read-only)
+- AC Always-On Min SOC number
+- Backup Reserve SOC number (read-only)
+- Operating Mode select (Default/Self-powered/Scheduled/TOU)
+
+**Fixes:**
+- Delta 3 Plus and Delta 3 Max added to select.py model registry (prevented crash)
+- Delta Pro 3 added to select.py model registry
+- AC_DSG combined command uses 255 sentinel to preserve current xboost/freq values
+
+**New API method: `set_quota_cmdcode()`:**
+- Added to both `EcoFlowAPI` and `EcoFlowPrivateAPI` for cmdCode-based SET commands
+- REST: `PUT /iot-open/sign/device/quota` with `{sn, cmdCode, params}`
+- MQTT: `{id, version:"1.0", cmdCode:"YJ751_PD_*", params:{...}}`
+
+**Platform updates for cmdCode routing:**
+- `switch.py`: new `dpu_cmd_code` + `dpu_cmd_params` fields, cmdCode publish path (Priority 2.6)
+- `number.py`: new `dpu_cmd_code` + `dpu_cmd_param_key` fields, cmdCode publish path (Priority 2.6)
+- `button.py`: DPU registered (no buttons in DPU docs)
+- `sensor.py`: ~45 DPU sensors registered across 3 namespaces
+
+**Device count:** 20 devices total (19 previous + Delta Pro Ultra). All with full control.
 
 ### v0.3.5 -- Repository rename + device profile verification
 
@@ -353,10 +421,7 @@ logger:
 - Wave 2: 4/4 selects, 1/1 numbers — fully complete
 - Glacier: 3/3 switches, 3/3 numbers, 3 buttons — fully complete
 - River 2 Pro: 3/3 switches, 3/3 numbers — fully complete
-- Delta Pro Ultra: not implemented (cmdCode protocol — v0.4.0+ roadmap)
-
-**Cleanup:**
-- `mqtt_listen.ps1` and `test_all_switches.ps1` added to push script SKIP list
+- Delta Pro Ultra: registry only in v0.3.5 (cmdCode protocol — implemented in v0.3.6)
 
 19 devices total. All with full control (except Delta Pro Ultra — registry only).
 
@@ -521,7 +586,7 @@ PowerStream uses protobuf binary protocol with pure-Python encoder -- no protobu
 ### v0.2.25 – Slave battery sensors + Bypass fix
 
 **Added: Slave battery sensors (delta3_1500.py, sensor.py)**
-- Added 35 sensors for the P361Z1H4PGBR0251 slave battery, confirmed present via live MQTT telemetry
+- Added 35 sensors for the slave battery, confirmed present via live MQTT telemetry
 - Primary sensors enabled by default: SOC, SoH, voltage, current, temperature, remaining capacity, input/output power, charge cycles
 - Diagnostics disabled by default: cell temperatures, cell voltages, cumulative capacity/energy, internal resistance, round-trip efficiency, deep discharge count, error codes
 - Keys follow bms_slave.* prefix, units/scale identical to main battery bms_bmsStatus.*
