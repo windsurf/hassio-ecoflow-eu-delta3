@@ -2786,6 +2786,45 @@ _DPU_SENSORS: tuple[EcoFlowSensorDescription, ...] = (
 
 SENSOR_DESCRIPTIONS_BY_MODEL["Delta Pro Ultra"] = _DPU_SENSORS
 
+# ══════════════════════════════════════════════════════════════════════════════
+# River 3 / River 3 Plus (R641/R651) — Gen 3 protocol, flat keys
+# Source: foxthefox/ioBroker.ecoflow-mqtt river3plus.md (community MQTT data)
+# ══════════════════════════════════════════════════════════════════════════════
+
+from .devices import river3 as r3
+
+_R3_SENSORS: tuple[EcoFlowSensorDescription, ...] = (
+    # ── Core power sensors ───────────────────────────────────────────────
+    EcoFlowSensorDescription(key=r3.KEY_SOC, name="Battery SOC", native_unit_of_measurement=PERCENTAGE, device_class=SensorDeviceClass.BATTERY, state_class=SensorStateClass.MEASUREMENT, round_digits=0),
+    EcoFlowSensorDescription(key=r3.KEY_TOTAL_IN_POWER, name="Total Input Power", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, round_digits=0),
+    EcoFlowSensorDescription(key=r3.KEY_TOTAL_OUT_POWER, name="Total Output Power", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, round_digits=0),
+    EcoFlowSensorDescription(key=r3.KEY_DSG_REMAIN_TIME, name="Discharge Remaining Time", native_unit_of_measurement=UnitOfTime.MINUTES, icon="mdi:timer-sand", state_class=SensorStateClass.MEASUREMENT, round_digits=0),
+    EcoFlowSensorDescription(key=r3.KEY_CHG_REMAIN_TIME, name="Charge Remaining Time", native_unit_of_measurement=UnitOfTime.MINUTES, icon="mdi:timer-sand", state_class=SensorStateClass.MEASUREMENT, round_digits=0),
+    EcoFlowSensorDescription(key=r3.KEY_SOH, name="Battery SOH", native_unit_of_measurement=PERCENTAGE, icon="mdi:battery-heart-variant", state_class=SensorStateClass.MEASUREMENT, round_digits=0, entity_registry_enabled_default=False),
+
+    # ── Per-port output power ────────────────────────────────────────────
+    EcoFlowSensorDescription(key=r3.KEY_POW_AC_OUT, name="AC Output Power", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, round_digits=0),
+    EcoFlowSensorDescription(key=r3.KEY_POW_AC_IN, name="AC Input Power", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, round_digits=0),
+    EcoFlowSensorDescription(key=r3.KEY_POW_USB1, name="USB1 Power", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, round_digits=0, entity_registry_enabled_default=False),
+    EcoFlowSensorDescription(key=r3.KEY_POW_USB2, name="USB2 Power", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, round_digits=0, entity_registry_enabled_default=False),
+    EcoFlowSensorDescription(key=r3.KEY_POW_TYPEC1, name="Type-C1 Power", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, round_digits=0),
+    EcoFlowSensorDescription(key=r3.KEY_POW_TYPEC2, name="Type-C2 Power", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, round_digits=0, entity_registry_enabled_default=False),
+    EcoFlowSensorDescription(key=r3.KEY_POW_12V, name="12V Output Power", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, round_digits=0, entity_registry_enabled_default=False),
+    EcoFlowSensorDescription(key=r3.KEY_POW_PV, name="Solar Input Power", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, round_digits=0),
+
+    # ── Temperatures ─────────────────────────────────────────────────────
+    EcoFlowSensorDescription(key=r3.KEY_TEMP_BMS_MAX, name="Battery Temperature", native_unit_of_measurement=UnitOfTemperature.CELSIUS, device_class=SensorDeviceClass.TEMPERATURE, state_class=SensorStateClass.MEASUREMENT, round_digits=0),
+
+    # ── Settings readback ────────────────────────────────────────────────
+    EcoFlowSensorDescription(key=r3.KEY_MAX_CHG_SOC, name="Max Charge SOC", native_unit_of_measurement=PERCENTAGE, icon="mdi:battery-charging-high", state_class=SensorStateClass.MEASUREMENT, round_digits=0),
+    EcoFlowSensorDescription(key=r3.KEY_MIN_DSG_SOC, name="Min Discharge SOC", native_unit_of_measurement=PERCENTAGE, icon="mdi:battery-charging-low", state_class=SensorStateClass.MEASUREMENT, round_digits=0),
+    EcoFlowSensorDescription(key=r3.KEY_AC_OUT_FREQ, name="AC Output Frequency", native_unit_of_measurement=UnitOfFrequency.HERTZ, device_class=SensorDeviceClass.FREQUENCY, state_class=SensorStateClass.MEASUREMENT, round_digits=0, entity_registry_enabled_default=False),
+    EcoFlowSensorDescription(key=r3.KEY_AC_CHG_POW_MAX, name="AC Max Charging Power", native_unit_of_measurement=UnitOfPower.WATT, device_class=SensorDeviceClass.POWER, state_class=SensorStateClass.MEASUREMENT, round_digits=0, entity_registry_enabled_default=False),
+)
+
+SENSOR_DESCRIPTIONS_BY_MODEL["River 3"] = _R3_SENSORS
+SENSOR_DESCRIPTIONS_BY_MODEL["River 3 Plus"] = _R3_SENSORS
+
 
 def _get_sensor_descriptions(model: str) -> tuple[EcoFlowSensorDescription, ...]:
     """Get sensor descriptions for a device model. Falls back to empty tuple."""
