@@ -197,22 +197,17 @@ PARAM_CHG_5P8_WATTS  = "chg5p8Watts"                    # POWER IN/OUT charging 
 # ══════════════════════════════════════════════════════════════════════════════
 # showFlag bit field — extract individual switch states from decimal value
 # Convert to binary, read bit positions right-to-left:
-#   bit 1 (2nd): battery heating (0=enabled, 1=prohibited)
+#   bit 1 (2nd): battery heating (0=enabled, 1=prohibited — INVERTED)
 #   bit 2 (3rd): AC output enabled
 #   bit 5 (6th): DC output enabled
+#
+# Usage in switch.py: show_flag_bit=SHOW_FLAG_BIT_AC on the SwitchDescription
+# The is_on property extracts the bit inline — no helper function needed.
 # ══════════════════════════════════════════════════════════════════════════════
 
-def extract_show_flag_bit(show_flag: int, bit_position: int) -> int:
-    """Extract a single bit from the showFlag field.
-
-    Args:
-        show_flag: decimal value of showFlag
-        bit_position: 0-indexed bit position (right-to-left)
-
-    Returns:
-        0 or 1
-    """
-    return (show_flag >> bit_position) & 1
+SHOW_FLAG_BIT_HEAT = 1   # Battery heating: 0=enabled, 1=prohibited (inverted)
+SHOW_FLAG_BIT_AC   = 2   # AC output: 1=enabled
+SHOW_FLAG_BIT_DC   = 5   # DC output: 1=enabled
 
 
 DEVICE_MODEL = "Delta Pro Ultra"
