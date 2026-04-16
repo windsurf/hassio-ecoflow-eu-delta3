@@ -919,6 +919,71 @@ _DPU_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
 
 NUMBER_DESCRIPTIONS_BY_MODEL["Delta Pro Ultra"] = _DPU_NUMBERS
 
+# ══════════════════════════════════════════════════════════════════════════════
+# River 3 / River 3 Plus (R641/R651) — Gen 3 protocol (cmdFunc=254)
+# Source: foxthefox/ioBroker.ecoflow-mqtt river3plus.md level commands
+# ══════════════════════════════════════════════════════════════════════════════
+
+from .devices import river3 as r3_num
+
+_R3_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
+    EcoFlowNumberDescription(
+        key="r3_max_chg_soc", name="Max Charge SOC",
+        native_unit_of_measurement="%", native_min_value=50, native_max_value=100, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:battery-charging-high",
+        state_key=r3_num.KEY_MAX_CHG_SOC,
+        dp3_cmd_key=r3_num.CMD_MAX_CHG_SOC,
+    ),
+    EcoFlowNumberDescription(
+        key="r3_min_dsg_soc", name="Min Discharge SOC",
+        native_unit_of_measurement="%", native_min_value=0, native_max_value=30, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:battery-charging-low",
+        state_key=r3_num.KEY_MIN_DSG_SOC,
+        dp3_cmd_key=r3_num.CMD_MIN_DSG_SOC,
+    ),
+    EcoFlowNumberDescription(
+        key="r3_dev_standby", name="Device Standby Time",
+        native_unit_of_measurement="min", native_min_value=0, native_max_value=1440, native_step=30,
+        mode=NumberMode.SLIDER, icon="mdi:timer-outline",
+        state_key=r3_num.KEY_DEV_STANDBY_TIME,
+        dp3_cmd_key=r3_num.CMD_DEV_STANDBY,
+    ),
+    EcoFlowNumberDescription(
+        key="r3_screen_off", name="Screen Off Time",
+        native_unit_of_measurement="s", native_min_value=0, native_max_value=1800, native_step=30,
+        mode=NumberMode.SLIDER, icon="mdi:monitor-off",
+        state_key=r3_num.KEY_SCREEN_OFF_TIME,
+        dp3_cmd_key=r3_num.CMD_SCREEN_OFF,
+        entity_registry_enabled_default=False,
+    ),
+    EcoFlowNumberDescription(
+        key="r3_ac_standby", name="AC Standby Time",
+        native_unit_of_measurement="min", native_min_value=0, native_max_value=1440, native_step=30,
+        mode=NumberMode.SLIDER, icon="mdi:timer-outline",
+        state_key=r3_num.KEY_AC_STANDBY_TIME,
+        dp3_cmd_key=r3_num.CMD_AC_STANDBY,
+        entity_registry_enabled_default=False,
+    ),
+    EcoFlowNumberDescription(
+        key="r3_ac_chg_power", name="AC Charging Power",
+        native_unit_of_measurement="W", native_min_value=50, native_max_value=305, native_step=5,
+        mode=NumberMode.SLIDER, icon="mdi:transmission-tower-import",
+        state_key=r3_num.KEY_AC_CHG_POW_SET,
+        dp3_cmd_key=r3_num.CMD_AC_CHG_POW,
+    ),
+    EcoFlowNumberDescription(
+        key="r3_pv_dc_amp", name="Solar Max Charge Current",
+        native_unit_of_measurement="A", native_min_value=4, native_max_value=8, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:solar-power",
+        state_key=r3_num.KEY_PV_DC_AMP_MAX,
+        dp3_cmd_key=r3_num.CMD_PV_DC_AMP,
+        entity_registry_enabled_default=False,
+    ),
+)
+
+NUMBER_DESCRIPTIONS_BY_MODEL["River 3"] = _R3_NUMBERS
+NUMBER_DESCRIPTIONS_BY_MODEL["River 3 Plus"] = _R3_NUMBERS
+
 
 def _get_number_descriptions(model: str) -> tuple[EcoFlowNumberDescription, ...]:
     """Get number descriptions for a device model. Falls back to empty tuple."""
