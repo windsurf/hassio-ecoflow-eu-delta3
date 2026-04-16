@@ -723,21 +723,40 @@ SWITCH_DESCRIPTIONS_BY_MODEL: dict[str, tuple[EcoFlowSwitchDescription, ...]] = 
 from .devices import delta_pro_ultra as dpu
 
 _DPU_SWITCHES: tuple[EcoFlowSwitchDescription, ...] = (
+    # ── showFlag-backed switches (real state from telemetry bit field) ────
     EcoFlowSwitchDescription(
         key="dpu_ac_output", name="AC Output", icon="mdi:power-socket-eu",
         state_key=dpu.KEY_SHOW_FLAG,
-        show_flag_bit=2,             # bit 2 (3rd digit right-to-left) = AC output
+        show_flag_bit=dpu.SHOW_FLAG_BIT_AC,    # bit 2: AC output enabled
         dpu_cmd_code=dpu.CMD_AC_DSG,
         # AC_DSG is a combined command — preserve current xboost and freq
-        # cmd_params_fn cannot read coordinator; use static defaults as fallback
-        # Real values are read via coordinator-aware path in _publish override
         dpu_cmd_params=lambda on: {
             dpu.PARAM_AC_ENABLE:   1 if on else 0,
             dpu.PARAM_AC_XBOOST:   255,      # 255 = keep current (EcoFlow convention)
             dpu.PARAM_AC_OUT_FREQ: 255,      # 255 = keep current
         },
-        optimistic=True,
+        # No optimistic — state confirmed via showFlag telemetry
     ),
+    EcoFlowSwitchDescription(
+        key="dpu_dc_output", name="DC Output", icon="mdi:car-battery",
+        state_key=dpu.KEY_SHOW_FLAG,
+        show_flag_bit=dpu.SHOW_FLAG_BIT_DC,    # bit 5: DC output enabled
+        dpu_cmd_code=dpu.CMD_DC_SWITCH,
+        dpu_cmd_params=lambda on: {dpu.PARAM_DC_ENABLE: 1 if on else 0},
+        # No optimistic — state confirmed via showFlag telemetry
+    ),
+    EcoFlowSwitchDescription(
+        key="dpu_bp_heat", name="Battery Heating", icon="mdi:radiator",
+        state_key=dpu.KEY_SHOW_FLAG,
+        show_flag_bit=dpu.SHOW_FLAG_BIT_HEAT,  # bit 1: 0=enabled, 1=prohibited
+        inverted=True,                          # showFlag bit is inverted for heating
+        dpu_cmd_code=dpu.CMD_BP_HEAT,
+        dpu_cmd_params=lambda on: {dpu.PARAM_BP_HEAT: 1 if on else 0},
+        # No optimistic — state confirmed via showFlag telemetry
+        entity_registry_enabled_default=False,
+    ),
+
+    # ── Quota key-backed switches (state from individual telemetry keys) ──
     EcoFlowSwitchDescription(
         key="dpu_xboost", name="X-Boost", icon="mdi:lightning-bolt",
         state_key=dpu.KEY_AC_XBOOST,
@@ -747,30 +766,14 @@ _DPU_SWITCHES: tuple[EcoFlowSwitchDescription, ...] = (
             dpu.PARAM_AC_XBOOST:   1 if on else 0,
             dpu.PARAM_AC_OUT_FREQ: 255,      # 255 = keep current
         },
-        optimistic=True,
-    ),
-    EcoFlowSwitchDescription(
-        key="dpu_dc_output", name="DC Output", icon="mdi:car-battery",
-        state_key=dpu.KEY_SHOW_FLAG,
-        show_flag_bit=5,             # bit 5 (6th digit right-to-left) = DC output
-        dpu_cmd_code=dpu.CMD_DC_SWITCH,
-        dpu_cmd_params=lambda on: {dpu.PARAM_DC_ENABLE: 1 if on else 0},
-        optimistic=True,
-    ),
-    EcoFlowSwitchDescription(
-        key="dpu_bp_heat", name="Battery Heating", icon="mdi:radiator",
-        state_key=dpu.KEY_BMS_MODE_SET,
-        dpu_cmd_code=dpu.CMD_BP_HEAT,
-        dpu_cmd_params=lambda on: {dpu.PARAM_BP_HEAT: 1 if on else 0},
-        optimistic=True,
-        entity_registry_enabled_default=False,
+        optimistic=True,      # No known showFlag bit for xboost
     ),
     EcoFlowSwitchDescription(
         key="dpu_4g", name="4G Switch", icon="mdi:signal-4g",
         state_key=dpu.KEY_4G_ON,
         dpu_cmd_code=dpu.CMD_4G_SWITCH,
         dpu_cmd_params=lambda on: {dpu.PARAM_4G_OPEN: 1 if on else 0},
-        optimistic=True,
+        optimistic=True,      # No known showFlag bit for 4G
         entity_registry_enabled_default=False,
     ),
     EcoFlowSwitchDescription(
@@ -778,7 +781,7 @@ _DPU_SWITCHES: tuple[EcoFlowSwitchDescription, ...] = (
         state_key=dpu.KEY_AC_OFTEN_OPEN,
         dpu_cmd_code=dpu.CMD_AC_OFTEN_OPEN,
         dpu_cmd_params=lambda on: {dpu.PARAM_AC_OFTEN_OPEN: 1 if on else 0},
-        optimistic=True,
+        optimistic=True,      # No known showFlag bit for AC Always-On
         entity_registry_enabled_default=False,
     ),
     EcoFlowSwitchDescription(
@@ -791,6 +794,60 @@ _DPU_SWITCHES: tuple[EcoFlowSwitchDescription, ...] = (
 )
 
 SWITCH_DESCRIPTIONS_BY_MODEL["Delta Pro Ultra"] = _DPU_SWITCHES
+
+# ══════════════════════════════════════════════════════════════════════════════
+# River 3 / River 3 Plus (R641/R651) — Gen 3 protocol (cmdFunc=254)
+# Source: foxthefox/ioBroker.ecoflow-mqtt river3plus.md setDp3 commands
+# Uses same dp3_cmd_key mechanism as Delta Pro 3
+# ══════════════════════════════════════════════════════════════════════════════
+
+from .devices import river3 as r3
+
+_R3_SWITCHES: tuple[EcoFlowSwitchDescription, ...] = (
+    EcoFlowSwitchDescription(
+        key="r3_ac_output", name="AC Output", icon="mdi:power-socket-eu",
+        state_key=r3.KEY_FLOW_DC2AC,   # flowInfoDc2ac: 0=off, 2=on
+        dp3_cmd_key=r3.CMD_AC_OUT,
+        cmd_params=lambda on: True if on else False,
+        optimistic=True,
+    ),
+    EcoFlowSwitchDescription(
+        key="r3_dc_12v", name="DC 12V Output", icon="mdi:car-battery",
+        state_key=r3.KEY_FLOW_12V,     # flowInfo12v: 0=off, 2=on
+        dp3_cmd_key=r3.CMD_DC_12V_OUT,
+        cmd_params=lambda on: True if on else False,
+        optimistic=True,
+    ),
+    EcoFlowSwitchDescription(
+        key="r3_xboost", name="X-Boost", icon="mdi:lightning-bolt",
+        state_key=r3.KEY_XBOOST,
+        dp3_cmd_key=r3.CMD_XBOOST,
+        optimistic=True,
+    ),
+    EcoFlowSwitchDescription(
+        key="r3_beep", name="Beep Sound", icon="mdi:volume-high",
+        state_key=r3.KEY_BEEP,
+        dp3_cmd_key=r3.CMD_BEEP,
+        optimistic=True,
+    ),
+    EcoFlowSwitchDescription(
+        key="r3_output_memory", name="Output Memory", icon="mdi:memory",
+        state_key=r3.KEY_OUTPUT_MEMORY,
+        dp3_cmd_key=r3.CMD_OUTPUT_MEMORY,
+        optimistic=True,
+        entity_registry_enabled_default=False,
+    ),
+    EcoFlowSwitchDescription(
+        key="r3_energy_backup", name="Energy Backup", icon="mdi:battery-heart",
+        state_key=r3.KEY_ENERGY_BACKUP_EN,
+        dp3_cmd_key=r3.CMD_ENERGY_BACKUP,
+        optimistic=True,
+        entity_registry_enabled_default=False,
+    ),
+)
+
+SWITCH_DESCRIPTIONS_BY_MODEL["River 3"] = _R3_SWITCHES
+SWITCH_DESCRIPTIONS_BY_MODEL["River 3 Plus"] = _R3_SWITCHES
 
 
 def _get_switch_descriptions(model: str) -> tuple[EcoFlowSwitchDescription, ...]:
@@ -858,7 +915,10 @@ class EcoFlowSwitchEntity(CoordinatorEntity[EcoflowCoordinator], SwitchEntity):
             except (TypeError, ValueError):
                 return None
         else:
-            active = int(val) == 1
+            # Most devices: 0=off, 1=on
+            # River 3 flow keys: 0=off, 2=on
+            # Using != 0 covers both conventions safely
+            active = int(val) != 0
         return (not active) if self.entity_description.inverted else active
 
     @property
@@ -935,10 +995,25 @@ class EcoFlowSwitchEntity(CoordinatorEntity[EcoflowCoordinator], SwitchEntity):
 
         # Priority 2.6: Delta Pro Ultra cmdCode format
         if desc.dpu_cmd_code:
+            params = desc.dpu_cmd_params(turn_on) if desc.dpu_cmd_params else {}
+
+            # AC_DSG combined command: replace 255 sentinels with actual values
+            # from coordinator so the device receives the full current state.
+            # Without this, 255 might reset xboost/freq on some firmware versions.
+            if desc.dpu_cmd_code == dpu.CMD_AC_DSG:
+                data = self.coordinator.data or {}
+                if params.get(dpu.PARAM_AC_XBOOST) == 255:
+                    cur = data.get(dpu.KEY_AC_XBOOST)
+                    if cur is not None:
+                        params[dpu.PARAM_AC_XBOOST] = int(cur)
+                if params.get(dpu.PARAM_AC_OUT_FREQ) == 255:
+                    cur = data.get(dpu.KEY_AC_OUT_FREQ)
+                    if cur is not None:
+                        params[dpu.PARAM_AC_OUT_FREQ] = int(cur)
+
             # Priority 2.6a: REST API SET with cmdCode
             rest_api = self._entry_data.get("rest_api")
             if rest_api is not None and hasattr(rest_api, 'set_quota_cmdcode'):
-                params = desc.dpu_cmd_params(turn_on) if desc.dpu_cmd_params else {}
                 try:
                     rest_api.set_quota_cmdcode(desc.dpu_cmd_code, params)
                     _LOGGER.info(
@@ -958,7 +1033,6 @@ class EcoFlowSwitchEntity(CoordinatorEntity[EcoflowCoordinator], SwitchEntity):
             if not client or not topic:
                 _LOGGER.error("EcoFlow: no MQTT client — cannot send DPU %s command", desc.key)
                 return
-            params = desc.dpu_cmd_params(turn_on) if desc.dpu_cmd_params else {}
             cmd = {
                 "id":       _next_id(),
                 "version":  "1.0",
