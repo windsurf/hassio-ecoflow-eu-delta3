@@ -1,0 +1,78 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "EcoFlow Cloud – Beállítás",
+        "description": "Adja hozzá EcoFlow eszközét. Az **automatikus felismerés** (ajánlott) a sorozatszám alapján választja ki a megfelelő API-t.",
+        "data": {
+          "device_sn": "Eszköz sorozatszáma",
+          "auth_mode": "Csatlakozási módszer"
+        },
+        "data_description": {
+          "device_sn": "Az eszköz matricáján vagy az EcoFlow alkalmazásban az Eszközinformációk alatt",
+          "auth_mode": "Automatikus kiválasztja az App Logint a Delta 3-hoz és újabb eszközökhöz, Developer API-t a régebbekhez"
+        }
+      },
+      "public_creds": {
+        "title": "EcoFlow Cloud – Developer API",
+        "description": "{hint}",
+        "data": {
+          "access_key": "Hozzáférési kulcs",
+          "secret_key": "Titkos kulcs"
+        }
+      },
+      "private_creds": {
+        "title": "EcoFlow Cloud – Alkalmazáson keresztüli bejelentkezés",
+        "description": "{hint}",
+        "data": {
+          "email": "EcoFlow fiók e-mail cím",
+          "password": "EcoFlow fiók jelszó"
+        }
+      },
+      "test": {
+        "title": "EcoFlow Cloud – Kapcsolódási teszt",
+        "description": "{eu}\n{us}\n{glob}\n\n{hint}"
+      },
+      "developer_creds": {
+        "title": "EcoFlow Cloud - Developer API (Optional)",
+        "description": "{hint}",
+        "data": {
+          "dev_access_key": "Developer Access Key (optional)",
+          "dev_secret_key": "Developer Secret Key (optional)"
+        },
+        "data_description": {
+          "dev_access_key": "Enables switch and number control via REST API. Leave empty to skip.",
+          "dev_secret_key": "Required if Access Key is provided."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Nem lehet csatlakozni – ellenőrizze a hitelesítő adatait.",
+      "unknown": "Váratlan hiba. Ellenőrizze a Home Assistant naplóit."
+    },
+    "abort": {
+      "already_configured": "Ez az eszköz már konfigurálva van."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "EcoFlow Cloud – Beállítások ({mode})",
+        "description": "Jelenlegi API-kiszolgáló: {current_host}",
+        "data": {
+          "access_key": "Hozzáférési kulcs",
+          "secret_key": "Titkos kulcs",
+          "email": "EcoFlow fiók e-mail cím",
+          "password": "EcoFlow fiók jelszó",
+          "device_sn": "Eszköz sorozatszáma",
+          "api_host": "API-kiszolgáló",
+          "dev_access_key": "Developer Access Key (optional)",
+          "dev_secret_key": "Developer Secret Key"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Nem lehet csatlakozni ezekkel a hitelesítő adatokkal."
+    }
+  }
+}
