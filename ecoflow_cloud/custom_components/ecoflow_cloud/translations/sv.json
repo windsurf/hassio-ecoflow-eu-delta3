@@ -1,0 +1,78 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "EcoFlow Cloud – Installation",
+        "description": "Lägg till din EcoFlow-enhet. **Automatisk identifiering** (rekommenderas) väljer rätt API baserat på serienumret.",
+        "data": {
+          "device_sn": "Enhetens serienummer",
+          "auth_mode": "Anslutningsmetod"
+        },
+        "data_description": {
+          "device_sn": "Finns på enhetens etikett eller i EcoFlow-appen under Enhetsinformation",
+          "auth_mode": "Automatisk väljer App-inloggning för Delta 3 och nyare enheter, Developer API för äldre"
+        }
+      },
+      "public_creds": {
+        "title": "EcoFlow Cloud – Developer API",
+        "description": "{hint}",
+        "data": {
+          "access_key": "Åtkomstnyckel",
+          "secret_key": "Hemlig nyckel"
+        }
+      },
+      "private_creds": {
+        "title": "EcoFlow Cloud – App-inloggning",
+        "description": "{hint}",
+        "data": {
+          "email": "E-postadress för EcoFlow-konto",
+          "password": "Lösenord för EcoFlow-konto"
+        }
+      },
+      "test": {
+        "title": "EcoFlow Cloud – Anslutningstest",
+        "description": "{eu}\n{us}\n{glob}\n\n{hint}"
+      },
+      "developer_creds": {
+        "title": "EcoFlow Cloud - Developer API (Optional)",
+        "description": "{hint}",
+        "data": {
+          "dev_access_key": "Developer Access Key (optional)",
+          "dev_secret_key": "Developer Secret Key (optional)"
+        },
+        "data_description": {
+          "dev_access_key": "Enables switch and number control via REST API. Leave empty to skip.",
+          "dev_secret_key": "Required if Access Key is provided."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Kan inte ansluta – kontrollera dina uppgifter.",
+      "unknown": "Oväntat fel. Kontrollera Home Assistant-loggarna."
+    },
+    "abort": {
+      "already_configured": "Den här enheten är redan konfigurerad."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "EcoFlow Cloud – Inställningar ({mode})",
+        "description": "Aktuell API-server: {current_host}",
+        "data": {
+          "access_key": "Åtkomstnyckel",
+          "secret_key": "Hemlig nyckel",
+          "email": "E-postadress för EcoFlow-konto",
+          "password": "Lösenord för EcoFlow-konto",
+          "device_sn": "Enhetens serienummer",
+          "api_host": "API-server",
+          "dev_access_key": "Developer Access Key (optional)",
+          "dev_secret_key": "Developer Secret Key"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Det går inte att ansluta med dessa uppgifter."
+    }
+  }
+}
