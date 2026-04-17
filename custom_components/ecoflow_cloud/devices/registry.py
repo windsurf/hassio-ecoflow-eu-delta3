@@ -41,6 +41,15 @@ _SN_PREFIX_MAP: dict[str, str] = {
     "R641":  "River 3",
     "R651":  "River 3 Plus",
 
+    # ── Stream AC series (grid-tied micro-inverter) ─────────────────────
+    "BK31":  "Stream AC Pro",
+    "BK11":  "Stream Ultra",
+    "BK":    "Stream AC",           # short prefix — must be after longer BK31/BK11
+
+    # ── Smart Home Panel (protobuf — future) ────────────────────────────
+    "SH10":  "Smart Home Panel",
+    "SH20":  "Smart Home Panel 2",
+
     # ── River 2 series ───────────────────────────────────────────────────
     "R621":  "River 2",
     "R631":  "River 2 Max",
