@@ -874,9 +874,10 @@ _SA_SWITCHES: tuple[EcoFlowSwitchDescription, ...] = (
     ),
 )
 
-SWITCH_DESCRIPTIONS_BY_MODEL["Stream AC"] = _SA_SWITCHES
 SWITCH_DESCRIPTIONS_BY_MODEL["Stream AC Pro"] = _SA_SWITCHES
 SWITCH_DESCRIPTIONS_BY_MODEL["Stream Ultra"] = _SA_SWITCHES
+# Stream AC (BK?1Z) is a pure inverter without battery — no relay switches.
+# Only AC Pro (BK31Z) and Ultra (BK11Z) have relay2/relay3 AC outputs.
 
 
 def _get_switch_descriptions(model: str) -> tuple[EcoFlowSwitchDescription, ...]:
