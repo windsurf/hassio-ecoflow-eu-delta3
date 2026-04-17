@@ -1001,7 +1001,8 @@ from .proto_codec import (
     stream_build_brightness,
 )
 
-_SA_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
+# ── Battery-related numbers (Pro + Ultra only — not on basic inverter) ──
+_SA_BATTERY_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
     EcoFlowNumberDescription(
         key="sa_max_chg_soc", name="Max Charge SOC",
         native_unit_of_measurement="%", native_min_value=50, native_max_value=100, native_step=1,
@@ -1027,6 +1028,10 @@ _SA_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
         state_key="backupReverseSoc",
         proto_builder_sn=lambda v, sn: stream_build_backup_soc(int(v)),
     ),
+)
+
+# ── Inverter-wide numbers (all Stream AC variants including basic) ──────
+_SA_INVERTER_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
     EcoFlowNumberDescription(
         key="sa_feed_limit", name="Grid Feed-in Limit",
         native_unit_of_measurement="W", native_min_value=0, native_max_value=800, native_step=10,
@@ -1044,9 +1049,11 @@ _SA_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
     ),
 )
 
-NUMBER_DESCRIPTIONS_BY_MODEL["Stream AC"] = _SA_NUMBERS
-NUMBER_DESCRIPTIONS_BY_MODEL["Stream AC Pro"] = _SA_NUMBERS
-NUMBER_DESCRIPTIONS_BY_MODEL["Stream Ultra"] = _SA_NUMBERS
+# Stream AC basic (BK?1Z) — no battery, so only inverter-wide numbers
+NUMBER_DESCRIPTIONS_BY_MODEL["Stream AC"] = _SA_INVERTER_NUMBERS
+# Pro + Ultra have battery, so they get all numbers
+NUMBER_DESCRIPTIONS_BY_MODEL["Stream AC Pro"] = _SA_BATTERY_NUMBERS + _SA_INVERTER_NUMBERS
+NUMBER_DESCRIPTIONS_BY_MODEL["Stream Ultra"] = _SA_BATTERY_NUMBERS + _SA_INVERTER_NUMBERS
 
 
 def _get_number_descriptions(model: str) -> tuple[EcoFlowNumberDescription, ...]:
