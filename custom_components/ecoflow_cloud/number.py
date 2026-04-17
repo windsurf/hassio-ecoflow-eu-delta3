@@ -70,6 +70,10 @@ class EcoFlowNumberDescription(NumberEntityDescription):
     cmd_params_coord_fn: Any = None
     # proto_builder_sn: (value, device_sn) → bytes for protobuf binary commands (PowerStream)
     proto_builder_sn: Any = None
+    # proto_builder_coord_fn: (value, device_sn, coordinator_data) → bytes
+    # Like proto_builder_sn but receives coordinator.data for commands that need current state
+    # (e.g. Stream AC paired SOC: max_chg_soc command must include current min_dsg_soc)
+    proto_builder_coord_fn: Any = None
     # state_scale: multiply raw coordinator value by this factor for display
     # Use when the MQTT raw value is in a different unit than the slider (e.g. deciWatts → Watts)
     state_scale:    float = 1.0
@@ -984,6 +988,66 @@ _R3_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
 NUMBER_DESCRIPTIONS_BY_MODEL["River 3"] = _R3_NUMBERS
 NUMBER_DESCRIPTIONS_BY_MODEL["River 3 Plus"] = _R3_NUMBERS
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Stream AC / AC Pro / Ultra — protobuf number entities (cmdFunc=254)
+# Source: foxthefox/ioBroker.ecoflow-mqtt ef_stream_ac_pro_data.js
+# Commands use Stream AC protobuf envelope — proto_builder_sn wraps the value
+# Stream AC builders don't need device_sn (not in envelope) — sn is ignored
+# ══════════════════════════════════════════════════════════════════════════════
+
+from .proto_codec import (
+    stream_build_max_chg_soc, stream_build_min_dsg_soc,
+    stream_build_backup_soc, stream_build_feed_limit,
+    stream_build_brightness,
+)
+
+_SA_NUMBERS: tuple[EcoFlowNumberDescription, ...] = (
+    EcoFlowNumberDescription(
+        key="sa_max_chg_soc", name="Max Charge SOC",
+        native_unit_of_measurement="%", native_min_value=50, native_max_value=100, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:battery-charging-high",
+        state_key="cmsMaxChgSoc",
+        # Both max/min SOC must be sent together — read current min from coordinator
+        proto_builder_coord_fn=lambda v, sn, data: stream_build_max_chg_soc(
+            int(v), int(data.get("cmsMinDsgSoc", 5))),
+    ),
+    EcoFlowNumberDescription(
+        key="sa_min_dsg_soc", name="Min Discharge SOC",
+        native_unit_of_measurement="%", native_min_value=0, native_max_value=30, native_step=1,
+        mode=NumberMode.SLIDER, icon="mdi:battery-charging-low",
+        state_key="cmsMinDsgSoc",
+        # Both max/min SOC must be sent together — read current max from coordinator
+        proto_builder_coord_fn=lambda v, sn, data: stream_build_min_dsg_soc(
+            int(v), int(data.get("cmsMaxChgSoc", 100))),
+    ),
+    EcoFlowNumberDescription(
+        key="sa_backup_soc", name="Backup Reserve SOC",
+        native_unit_of_measurement="%", native_min_value=0, native_max_value=100, native_step=5,
+        mode=NumberMode.SLIDER, icon="mdi:battery-lock",
+        state_key="backupReverseSoc",
+        proto_builder_sn=lambda v, sn: stream_build_backup_soc(int(v)),
+    ),
+    EcoFlowNumberDescription(
+        key="sa_feed_limit", name="Grid Feed-in Limit",
+        native_unit_of_measurement="W", native_min_value=0, native_max_value=800, native_step=10,
+        mode=NumberMode.SLIDER, icon="mdi:transmission-tower-export",
+        state_key="feedGridModePowLimit",
+        proto_builder_sn=lambda v, sn: stream_build_feed_limit(int(v)),
+    ),
+    EcoFlowNumberDescription(
+        key="sa_brightness", name="Display Brightness",
+        native_unit_of_measurement="%", native_min_value=0, native_max_value=100, native_step=5,
+        mode=NumberMode.SLIDER, icon="mdi:brightness-6",
+        state_key="brightness",
+        proto_builder_sn=lambda v, sn: stream_build_brightness(int(v)),
+        entity_registry_enabled_default=False,
+    ),
+)
+
+NUMBER_DESCRIPTIONS_BY_MODEL["Stream AC"] = _SA_NUMBERS
+NUMBER_DESCRIPTIONS_BY_MODEL["Stream AC Pro"] = _SA_NUMBERS
+NUMBER_DESCRIPTIONS_BY_MODEL["Stream Ultra"] = _SA_NUMBERS
+
 
 def _get_number_descriptions(model: str) -> tuple[EcoFlowNumberDescription, ...]:
     """Get number descriptions for a device model. Falls back to empty tuple."""
@@ -1101,14 +1165,17 @@ class EcoFlowNumberEntity(CoordinatorEntity[EcoflowCoordinator], NumberEntity):
                     desc.key, exc,
                 )
 
-        # Priority 2: Protobuf binary MQTT SET (PowerStream)
-        if desc.proto_builder_sn is not None:
+        # Priority 2: Protobuf binary MQTT SET (PowerStream / Stream AC)
+        if desc.proto_builder_coord_fn is not None or desc.proto_builder_sn is not None:
             client = self._entry_data.get("mqtt_client")
             topic  = self._entry_data.get("mqtt_topic_set")
             if not client or not topic:
                 _LOGGER.error("EcoFlow: no MQTT client — cannot send %s proto command", desc.key)
                 return
-            payload = desc.proto_builder_sn(value, self._sn)
+            if desc.proto_builder_coord_fn is not None:
+                payload = desc.proto_builder_coord_fn(value, self._sn, self.coordinator.data or {})
+            else:
+                payload = desc.proto_builder_sn(value, self._sn)
             _LOGGER.info(
                 "EcoFlow: PROTO SET number %s value=%s topic=%s len=%d",
                 desc.key, value, topic, len(payload),
