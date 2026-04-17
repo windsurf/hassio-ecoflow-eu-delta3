@@ -92,6 +92,9 @@ BUTTON_DESCRIPTIONS_BY_MODEL: dict[str, tuple[EcoFlowButtonDescription, ...]] = 
     "Delta Pro Ultra": (),  # no button commands in DPU developer docs
     "River 3": (),          # no button commands in community docs
     "River 3 Plus": (),     # no button commands in community docs
+    "Stream AC": (),        # no button commands
+    "Stream AC Pro": (),    # no button commands
+    "Stream Ultra": (),     # no button commands
 }
 
 
