@@ -270,8 +270,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             # time.sleep() in on_connect blocks the paho network loop (all MQTT I/O stops).
             # threading.Timer runs _send_init_sequence in a separate thread after 5s
             # while the MQTT loop continues normally.
-            _LOGGER.debug("EcoFlow: init sequence scheduled in 5s (threading.Timer)")
-            threading.Timer(5.0, _send_init_sequence, args=(c,)).start()
+            # v0.3.9: Stream AC uses protobuf latestQuotas (separate keepalive loop) and
+            # does NOT respond to Delta 3 JSON init. Skip init sequence for Stream AC models.
+            if device_model in {"Stream AC", "Stream AC Pro", "Stream Ultra"}:
+                _LOGGER.debug(
+                    "EcoFlow: skipping JSON init sequence for %s — uses protobuf latestQuotas",
+                    device_model,
+                )
+            else:
+                _LOGGER.debug("EcoFlow: init sequence scheduled in 5s (threading.Timer)")
+                threading.Timer(5.0, _send_init_sequence, args=(c,)).start()
         else:
             _LOGGER.error("EcoFlow: MQTT connect FAILED rc=%d sn=%s", rc, sn)
 
@@ -515,7 +523,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # v0.2.19: Send JSON latestQuotas GET every 20s to keep session alive.
     # Protobuf GET (v0.2.18) was completely ignored by the device.
     # Proven via log analysis: get_reply (latestQuotas) triggers device acceptance.
-    if is_private:
+    # v0.3.9: Stream AC uses protobuf latestQuotas instead (see loop below).
+    _STREAM_AC_MODELS = {"Stream AC", "Stream AC Pro", "Stream Ultra"}
+    if is_private and device_model not in _STREAM_AC_MODELS:
         async def _get_keepalive_loop():
             await asyncio.sleep(25)   # wait after init sequence
             while True:
@@ -531,6 +541,40 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.info(
             "EcoFlow: JSON GET keepalive started (interval=%ds, topic=%s)",
             _GET_INTERVAL, topic_get,
+        )
+
+    # ── Stream AC protobuf latestQuotas keepalive (v0.3.9) ────────────────
+    # Source: foxthefox/ioBroker.ecoflow-mqtt ef_stream_inverter_data.js
+    # Stream AC family needs a minimal protobuf session ping (header only,
+    # no pdata) to keep DisplayPropertyUpload telemetry flowing. Unlike
+    # Delta 3, Stream AC ignores the JSON latestQuotas GET used above.
+    # This protobuf message is published to topic_set (same as commands).
+    if is_private and device_model in _STREAM_AC_MODELS:
+        from .proto_codec import stream_build_latest_quotas
+
+        async def _stream_ac_keepalive_loop():
+            await asyncio.sleep(15)   # wait after MQTT connect
+            while True:
+                current_client = hass.data[DOMAIN][entry.entry_id].get("mqtt_client")
+                if current_client:
+                    try:
+                        payload = stream_build_latest_quotas()
+                        result = current_client.publish(topic_set, payload, qos=1)
+                        _LOGGER.debug(
+                            "EcoFlow: Stream AC protobuf keepalive → %s mid=%s rc=%s (%d bytes)",
+                            topic_set, result.mid, result.rc, len(payload),
+                        )
+                    except Exception as exc:
+                        _LOGGER.debug(
+                            "EcoFlow: Stream AC keepalive error (non-fatal): %s", exc,
+                        )
+                await asyncio.sleep(15)  # foxthefox uses ~15s interval
+
+        hass.loop.create_task(_stream_ac_keepalive_loop())
+        _LOGGER.info(
+            "EcoFlow: Stream AC protobuf keepalive started "
+            "(interval=15s, model=%s, topic=%s)",
+            device_model, topic_set,
         )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
