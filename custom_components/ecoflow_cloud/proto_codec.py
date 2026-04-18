@@ -531,6 +531,48 @@ def stream_build_brightness(level: int) -> bytes:
     return _stream_wrap_cmd(pdata)
 
 
+def stream_build_latest_quotas() -> bytes:
+    """Build a minimal Stream AC session ping (latestQuotas).
+
+    Source: foxthefox/ioBroker.ecoflow-mqtt ef_stream_inverter_data.js
+      prepareProtoCmd() — when state === 'latestQuotas':
+
+        muster = {
+          header: {
+            src: 32,
+            dest: 32,
+            seq: Date.now(),
+            from: 'ios',
+          }
+        }
+
+    This message has NO pdata, NO cmdFunc, NO cmdId — it is a minimal
+    keep-alive that signals "I am an active app session" to the device.
+    Without this ping, Stream AC may stop publishing DisplayPropertyUpload
+    telemetry after a short idle period.
+
+    Structure (protobuf wire format):
+        setMessage {
+          header {                  (field 1 = LEN)
+            src: 32                 (field 2)
+            dest: 32                (field 3)
+            seq: <timestamp_ms>     (field 14)
+            from: "ios"             (field 23)
+          }
+        }
+
+    Note: dest=32 (app-to-app loopback style) — NOT dest=2 like command messages.
+    """
+    seq = int(time.time() * 1000) & 0xFFFFFFFF  # milliseconds
+    header = (
+        _fv(2, _STREAM_SRC) +          # src = 32
+        _fv(3, _STREAM_SRC) +          # dest = 32 (not 2!)
+        _fv(14, seq) +
+        _fs(23, "ios")
+    )
+    return _fb(1, header)
+
+
 
 
 # ---------------------------------------------------------------------------
