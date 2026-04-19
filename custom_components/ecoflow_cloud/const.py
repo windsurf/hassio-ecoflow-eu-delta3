@@ -1,7 +1,7 @@
 """Constants for EcoFlow Cloud integration."""
 
 DOMAIN              = "ecoflow_cloud"
-INTEGRATION_VERSION = "0.3.9"
+INTEGRATION_VERSION = "0.3.10"
 
 # Config entry keys
 CONF_ACCESS_KEY = "access_key"
