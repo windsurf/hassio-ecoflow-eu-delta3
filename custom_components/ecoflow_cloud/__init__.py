@@ -272,7 +272,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             # while the MQTT loop continues normally.
             # v0.3.9: Stream AC uses protobuf latestQuotas (separate keepalive loop) and
             # does NOT respond to Delta 3 JSON init. Skip init sequence for Stream AC models.
-            if device_model in {"Stream AC", "Stream AC Pro", "Stream Ultra"}:
+            # v0.3.10: Wave 3 + Glacier 55 added — same protobuf protocol family, same skip.
+            if device_model in {"Stream AC", "Stream AC Pro", "Stream Ultra", "Wave 3", "Glacier 55"}:
                 _LOGGER.debug(
                     "EcoFlow: skipping JSON init sequence for %s — uses protobuf latestQuotas",
                     device_model,
@@ -316,7 +317,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
             if is_proto:
                 # v0.3.4: Try to decode protobuf telemetry into coordinator data
-                decoded = decode_proto_telemetry(raw_bytes)
+                # v0.3.10: pass device_model to disambiguate cmdFunc=254/cmdId=21
+                # devices that share field numbers (Glacier 55 vs Wave 3 field 777)
+                decoded = decode_proto_telemetry(raw_bytes, device_model=device_model)
                 if decoded:
                     _LOGGER.info(
                         "EcoFlow: proto telemetry decoded: %d keys → %s",
@@ -524,7 +527,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Protobuf GET (v0.2.18) was completely ignored by the device.
     # Proven via log analysis: get_reply (latestQuotas) triggers device acceptance.
     # v0.3.9: Stream AC uses protobuf latestQuotas instead (see loop below).
-    _STREAM_AC_MODELS = {"Stream AC", "Stream AC Pro", "Stream Ultra"}
+    # v0.3.10: Wave 3 + Glacier 55 added — both use the same protobuf cmdFunc=254
+    # protocol and the same minimal latestQuotas keepalive structure as Stream AC.
+    _STREAM_AC_MODELS = {"Stream AC", "Stream AC Pro", "Stream Ultra", "Wave 3", "Glacier 55"}
     if is_private and device_model not in _STREAM_AC_MODELS:
         async def _get_keepalive_loop():
             await asyncio.sleep(25)   # wait after init sequence
