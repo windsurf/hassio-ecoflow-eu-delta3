@@ -46,9 +46,27 @@ _SN_PREFIX_MAP: dict[str, str] = {
     "BK11":  "Stream Ultra",
     "BK":    "Stream AC",           # short prefix — must be after longer BK31/BK11
 
-    # ── Smart Home Panel (protobuf — future) ────────────────────────────
+    # ── Smart Home Panel ───────────────────────────────────────────────────
+    # SHP1: JSON SET protocol (v0.3.10 — sensors + 12 channel switches + EPS mode)
+    # SHP2: protobuf cmdFunc=12 (v0.3.10 — sensor stubs only, full decoder TBD)
     "SH10":  "Smart Home Panel",
     "SH20":  "Smart Home Panel 2",
+
+    # ── PowerKit (modular off-grid system) ─────────────────────────────────
+    # Read-only in v0.3.10 — foxthefox documents only GET commands. SN prefix
+    # placeholder "M106" derived from foxthefox example "M106ZAB4Z000001F".
+    # Update when an owner reports their actual SN via GitHub issue.
+    "M106":  "PowerKit",
+
+    # ── PowerOcean (residential energy storage system) ─────────────────────
+    # All-in-one home battery + hybrid inverter (Tesla Powerwall / Sessy class).
+    # v0.3.10: registration + sensor stubs. Full protobuf decoder for
+    # cmdFunc=96 (JTS1_EMS_HEARTBEAT) and cmdFunc=254/cmdId=32
+    # (EnergyTotalReport) coming in v0.4.0 once test data is available.
+    # SN prefixes are placeholders — update via GitHub issues.
+    "PO11":  "PowerOcean",        # single-phase
+    "PO31":  "PowerOcean Plus",   # three-phase / commercial variant
+    "POFI":  "PowerOcean Fit",    # compact entry-level model
 
     # ── River 2 series ───────────────────────────────────────────────────
     "R621":  "River 2",
@@ -70,7 +88,15 @@ _SN_PREFIX_MAP: dict[str, str] = {
 
     # ── Climate ──────────────────────────────────────────────────────────
     "BX11":  "Glacier",
+    # Glacier 55 — placeholder SN prefix (foxthefox does not document the
+    # actual prefix; "BX55" follows the original Glacier naming pattern).
+    # Update when an owner reports their actual SN via GitHub issue.
+    "BX55":  "Glacier 55",
     "KT21":  "Wave 2",
+    # Wave 3 — placeholder SN prefix (foxthefox does not document the actual
+    # prefix; "KT3" follows the Wave 2 naming pattern). Update when a Wave 3
+    # owner reports their actual SN via GitHub issue.
+    "KT3":   "Wave 3",
 }
 
 # Default model for unknown devices
